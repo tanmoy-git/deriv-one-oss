@@ -292,10 +292,9 @@ def _main_loop() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=os.environ.get("LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    from logging_setup import configure_logging
+
+    configure_logging()
     init_db()
     try:
         _main_loop()
