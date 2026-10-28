@@ -21,7 +21,7 @@ const MemoryPage = lazy(() => import("./pages/MemoryPage"));
 const AutomationsPage = lazy(() => import("./pages/AutomationsPage"));
 const AgentsPage = lazy(() => import("./pages/AgentsPage"));
 const AgentRegisterPage = lazy(() => import("./pages/AgentRegisterPage"));
-const AgentDetailPage = lazy(() => import("./pages/AgentDetailPage"));
+const AgentDetailPage = lazy(() => import("./features/agents/AgentDetailPage"));
 const AgentOAuthPendingPage = lazy(() => import("./pages/AgentOAuthPendingPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage"));
