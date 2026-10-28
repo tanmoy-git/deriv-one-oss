@@ -31,32 +31,25 @@ reconcile_auth_environment()
 import anthropic
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-import jwt as pyjwt
 
 from auth_policy import AuthContext
 from app_config import APP_NAME, ORG_NOUN, http_user_agent
 from cf_access import (
-    AuthConfigurationError,
     ENABLE_MOCK_AUTH,
     OIDC_ISSUER,
     POLICY_AUD,
     TEAM_DOMAIN,
     assert_mock_auth_not_in_production,
     build_auth_context,
-    is_exempt_path,
-    rbac_violation,
 )
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from database import (
     Automation,
     AutomationRun,
     Chat,
-    Feedback,
     Memory,
     MemorySyncLog,
     Message,
@@ -1715,93 +1708,18 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title=f"{APP_NAME} API", lifespan=lifespan)
+from app_factory import create_app  # noqa: E402
+
+app = create_app(lifespan=lifespan)
 
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    # FastAPI's default 422 body is {"detail": [{"loc": [...], "msg": ..., "type": ...}, ...]} —
-    # a list of dicts. Frontend code does `new Error(body.detail)`, which stringifies a list of
-    # objects to "[object Object]". Flatten to a single human-readable string here instead.
-    messages = []
-    for err in exc.errors():
-        loc = ".".join(str(p) for p in err.get("loc", []) if p != "body")
-        msg = err.get("msg", "Invalid value")
-        messages.append(f"{loc}: {msg}" if loc else msg)
-    return JSONResponse(status_code=422, content={"detail": "; ".join(messages) or "Invalid request."})
-
-
-# Agent registration / lifecycle routes (Phase A — Slack runtime stubbed).
-# All routes inherit the Cloudflare Access JWT middleware below.
-from api_agents import router as agents_router  # noqa: E402
-from api_slack_oauth import router as slack_oauth_router, prune_expired_sessions  # noqa: E402
-from api_slack_user_oauth import router as slack_user_oauth_router, prune_expired_user_oauth_states  # noqa: E402
-from api_google_user_oauth import router as google_user_oauth_router, prune_expired_google_oauth_states  # noqa: E402
-from api_slack_events import router as slack_events_router  # noqa: E402
-from api_internal import router as internal_router  # noqa: E402
-from api_access import router as access_router  # noqa: E402
-from api_agent_access import router as agent_access_router  # noqa: E402
-from api_agent_skill_access import router as agent_skill_access_router  # noqa: E402
-from api_agent_roles import router as agent_roles_router  # noqa: E402
-from api_skill_publish import router as skill_publish_router  # noqa: E402
-from api_skill_artifacts import router as skill_artifacts_router  # noqa: E402
-from api_skill_artifacts_suggest import router as skill_artifacts_suggest_router  # noqa: E402
-from api_skill_artifact_plan import router as skill_artifact_plan_router  # noqa: E402
-from api_skill_ai_edit import router as skill_ai_edit_router  # noqa: E402
-from api_skill_create import router as skill_create_router  # noqa: E402
-from api_user_secrets import router as user_secrets_router  # noqa: E402
-from api_user_models import router as user_models_router  # noqa: E402
-from api_apps import router as apps_router  # noqa: E402
+# Names main.py itself uses from router modules (scheduler jobs, table setup).
+# The routers are included by app_factory.create_app().
+from api_slack_oauth import prune_expired_sessions  # noqa: E402
+from api_slack_user_oauth import prune_expired_user_oauth_states  # noqa: E402
+from api_google_user_oauth import prune_expired_google_oauth_states  # noqa: E402
 from apps_models import init_app_tables  # noqa: E402
-from api_infra import router as infra_router  # noqa: E402
-from api_systems import router as systems_router  # noqa: E402
-from api_usage import router as usage_router  # noqa: E402
-from api_analytics import router as analytics_router  # noqa: E402
-from event_log import router as events_router  # noqa: E402
-from api_slack_apps import router as slack_apps_router  # noqa: E402
-from api_channel_configs import router as channel_configs_router  # noqa: E402
-from api_home import router as home_router  # noqa: E402
-from api_workflows import router as workflows_router  # noqa: E402
-from api_proposals import router as proposals_router  # noqa: E402
-from api_agent_knowledge_base import router as agent_kb_router  # noqa: E402
-from api_flows import router as flows_router, flow_runs_router  # noqa: E402
-from api_platform import router as platform_router  # noqa: E402
-from api_setup import router as setup_router  # noqa: E402
 
-app.include_router(platform_router)
-app.include_router(setup_router)
-app.include_router(agents_router)
-app.include_router(slack_oauth_router)
-app.include_router(slack_user_oauth_router)
-app.include_router(google_user_oauth_router)
-app.include_router(slack_events_router)
-app.include_router(internal_router)
-app.include_router(access_router)
-app.include_router(agent_access_router)
-app.include_router(agent_skill_access_router)
-app.include_router(agent_roles_router)
-app.include_router(infra_router)
-app.include_router(systems_router)
-app.include_router(usage_router)
-app.include_router(skill_publish_router)
-app.include_router(skill_artifacts_router)
-app.include_router(skill_artifacts_suggest_router)
-app.include_router(skill_artifact_plan_router)
-app.include_router(skill_ai_edit_router)
-app.include_router(skill_create_router)
-app.include_router(user_secrets_router)
-app.include_router(user_models_router)
-app.include_router(apps_router)
-app.include_router(slack_apps_router)
-app.include_router(channel_configs_router)
-app.include_router(home_router)
-app.include_router(analytics_router)
-app.include_router(events_router)
-app.include_router(workflows_router)
-app.include_router(proposals_router)
-app.include_router(agent_kb_router)
-app.include_router(flows_router)
-app.include_router(flow_runs_router)
 
 # Ensure Lab apps table exists
 from database import engine as _db_engine  # noqa: E402
@@ -1818,147 +1736,7 @@ from access_models import SlackAppRegistrationClaim as _SlackAppRegistrationClai
 _AgentSlackAppGrant.__table__.create(_db_engine, checkfirst=True)
 _SlackAppRegistrationClaim.__table__.create(_db_engine, checkfirst=True)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5173",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-    ],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.middleware("http")
-async def identity_gate(request: Request, call_next):
-    """Authenticate every /api route from the verified identity token."""
-    path = request.url.path
-    if request.method == "OPTIONS":
-        from lab_app_api_guard import lab_cors_headers, lab_runtime_app_id
-
-        if (
-            request.headers.get("origin") == "null"
-            and lab_runtime_app_id(path)
-        ):
-            return Response(status_code=204, headers=lab_cors_headers())
-        return await call_next(request)
-    if is_exempt_path(path):
-        return await call_next(request)
-
-    from lab_app_api_guard import lab_cors_headers, lab_runtime_app_id
-    from lab_capability import lab_capability_header_name, verify_lab_capability
-
-    _cap_header = request.headers.get(lab_capability_header_name())
-    _runtime_app = lab_runtime_app_id(path) if path.startswith("/api/") else None
-    if _cap_header:
-        cap_auth = verify_lab_capability(_cap_header, _runtime_app or "")
-        if cap_auth is None or not _runtime_app:
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Lab capability is not valid for this API."},
-            )
-        request.state.auth = cap_auth
-        response = await call_next(request)
-        if request.headers.get("origin") == "null":
-            for key, value in lab_cors_headers().items():
-                response.headers[key] = value
-        return response
-    if request.headers.get("origin") == "null" and path.startswith("/api/"):
-        return JSONResponse(
-            status_code=403,
-            content={"detail": "Lab apps cannot use the platform session."},
-        )
-
-    try:
-        auth = build_auth_context(request.headers)
-    except PermissionError as exc:
-        logger.warning(
-            "Access JWT rejected groups/policy (403): %s "
-            "(if Cf-Access-Jwt-Assertion is missing you would get 401 instead)",
-            str(exc),
-        )
-        return JSONResponse(status_code=403, content={"detail": str(exc)})
-    except ValueError as exc:
-        return JSONResponse(status_code=401, content={"detail": str(exc)})
-    except AuthConfigurationError:
-        logger.exception("JWT auth misconfiguration")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Authentication misconfigured"},
-        )
-    except pyjwt.PyJWTError as exc:
-        logger.warning("JWT verification failed: %s", exc)
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Invalid or expired session token"},
-        )
-
-    forbid = rbac_violation(auth, request.method, path)
-    if forbid:
-        return JSONResponse(status_code=403, content={"detail": forbid})
-
-    from lab_app_api_guard import (
-        is_sensitive_platform_api,
-        lab_app_api_path_allowed,
-        request_from_lab_app_sandbox,
-        untrusted_same_origin_api_call,
-    )
-    from platform_client_guard import (
-        attestation_enforced,
-        is_valid_platform_client,
-        platform_client_header_name,
-    )
-
-    _pc_header = request.headers.get(platform_client_header_name())
-    if path.startswith("/api/"):
-        if request_from_lab_app_sandbox(
-            request.headers.get("origin"),
-            request.headers.get("referer"),
-        ) and not lab_app_api_path_allowed(path):
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Lab apps may only call /api/apps endpoints."},
-            )
-        if untrusted_same_origin_api_call(
-            path=path,
-            origin=request.headers.get("origin"),
-            referer=request.headers.get("referer"),
-            platform_client_header=_pc_header,
-            sec_fetch_site=request.headers.get("sec-fetch-site"),
-            sec_fetch_mode=request.headers.get("sec-fetch-mode"),
-            method=request.method,
-        ):
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "This API is not available from Lab app contexts."},
-            )
-        if (
-            attestation_enforced()
-            and is_sensitive_platform_api(path)
-            and not is_valid_platform_client(_pc_header)
-        ):
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Admin APIs require a platform UI attestation header."},
-            )
-
-    request.state.auth = auth
-    return await call_next(request)
-
-
-def get_current_user(request: Request) -> AuthContext:
-    user = getattr(request.state, "auth", None)
-    if not isinstance(user, AuthContext):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
-
-
-def deps_owner_sub(request: Request) -> str:
-    """The token's `sub` claim, used for row-level tenancy."""
-    return request_owner_sub(request)
+from auth_middleware import deps_owner_sub, get_current_user, identity_gate  # noqa: E402,F401
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -3596,56 +3374,8 @@ def get_run(run_id: str, owner_sub: str = Depends(deps_owner_sub)):
 
 
 # ── Memory ────────────────────────────────────────────────────────────────────
-
-class MemoryUpdate(BaseModel):
-    status: Optional[str] = None
-    title: Optional[str] = None
-    content: Optional[str] = None
-    category: Optional[str] = None
-
-
-def _memory_to_dict(m: Memory) -> dict:
-    return {
-        "id": m.id,
-        "key": m.key,
-        "title": m.title,
-        "category": m.category,
-        "content": m.content,
-        "source": m.source,
-        "status": m.status,
-        "last_confirmed_at": m.last_confirmed_at.isoformat(),
-        "created_at": m.created_at.isoformat(),
-        "updated_at": m.updated_at.isoformat(),
-    }
-
-
-@app.get("/api/memory")
-def list_memory(owner_sub: str = Depends(deps_owner_sub)):
-    db = SessionLocal()
-    try:
-        entries = (
-            db.query(Memory)
-            .filter(Memory.owner_sub == owner_sub)
-            .order_by(Memory.category, Memory.updated_at.desc())
-            .all()
-        )
-        last_log = (
-            db.query(MemorySyncLog)
-            .filter(MemorySyncLog.owner_sub == owner_sub)
-            .order_by(MemorySyncLog.started_at.desc())
-            .first()
-        )
-        return {
-            "entries": [_memory_to_dict(e) for e in entries],
-            "last_sync": {
-                "started_at": last_log.started_at.isoformat() if last_log else None,
-                "finished_at": last_log.finished_at.isoformat() if last_log and last_log.finished_at else None,
-                "status": last_log.status if last_log else None,
-            },
-        }
-    finally:
-        db.close()
-
+# Listing, editing and deleting entries live in api_memory.py. The sync
+# endpoints stay here because they run the mining job defined in this module.
 
 @app.post("/api/memory/sync", status_code=202)
 async def trigger_memory_sync(
@@ -3685,38 +3415,6 @@ def trigger_memory_sync_debug(owner_sub: str = Depends(deps_owner_sub)):
             db.close()
     except Exception:
         return {"ok": False, "traceback": _tb.format_exc()}
-
-
-@app.put("/api/memory/{memory_id}")
-def update_memory(memory_id: str, body: MemoryUpdate, owner_sub: str = Depends(deps_owner_sub)):
-    db = SessionLocal()
-    try:
-        entry = get_tenant_or_404(db, Memory, memory_id, owner_sub, "Memory entry not found")
-        if body.status is not None:
-            entry.status = body.status
-        if body.title is not None:
-            entry.title = body.title
-        if body.content is not None:
-            entry.content = body.content
-        if body.category is not None:
-            entry.category = body.category
-        entry.updated_at = datetime.now(timezone.utc)
-        db.commit()
-        return _memory_to_dict(entry)
-    finally:
-        db.close()
-
-
-@app.delete("/api/memory/{memory_id}")
-def delete_memory(memory_id: str, owner_sub: str = Depends(deps_owner_sub)):
-    db = SessionLocal()
-    try:
-        entry = get_tenant_or_404(db, Memory, memory_id, owner_sub, "Memory entry not found")
-        db.delete(entry)
-        db.commit()
-        return {"ok": True}
-    finally:
-        db.close()
 
 
 # ── File upload / serve ───────────────────────────────────────────────────────
@@ -3843,248 +3541,3 @@ async def serve_file(filename: str, owner_sub: str = Depends(deps_owner_sub)):
         logger.exception("blob-store fallback failed for %s", name_only)
 
     raise HTTPException(status_code=404, detail="File not found.")
-
-
-# ── Feedback annotate mode ────────────────────────────────────────────────────
-
-_FEEDBACK_CATEGORIES = frozenset({"bug", "feature", "ux", "other"})
-_FEEDBACK_STATUSES = frozenset({"open", "triaged", "in_progress", "done", "wont_do"})
-_FEEDBACK_PRIORITIES = frozenset({"low", "medium", "high", "urgent"})
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def _strip_html(text: str) -> str:
-    return _HTML_TAG_RE.sub("", text)
-
-
-def _sanitize_element_context(raw: dict) -> dict:
-    """Allow only known keys; cap string lengths."""
-    allowed = {"sectionId", "selector", "label", "rect", "viewport", "tag"}
-    out: dict = {}
-    for k in allowed:
-        v = raw.get(k)
-        if v is None:
-            out[k] = None
-        elif k in ("sectionId", "selector", "label", "tag"):
-            out[k] = str(v)[:240] if v else None
-        elif k == "rect" and isinstance(v, dict):
-            out[k] = {
-                "x": float(v.get("x", 0)),
-                "y": float(v.get("y", 0)),
-                "w": float(v.get("w", 0)),
-                "h": float(v.get("h", 0)),
-            }
-        elif k == "viewport" and isinstance(v, dict):
-            out[k] = {
-                "w": int(v.get("w", 0)),
-                "h": int(v.get("h", 0)),
-                "dpr": float(v.get("dpr", 1)),
-            }
-        else:
-            out[k] = None
-    return out
-
-
-class FeedbackCreate(BaseModel):
-    route: str
-    element_context: dict
-    user_message: str
-    category: str
-
-
-class FeedbackPatch(BaseModel):
-    status: Optional[str] = None
-    resolution_note: Optional[str] = None
-    assignee: Optional[str] = None
-    priority: Optional[str] = None
-
-
-def _feedback_to_dict(f: Feedback) -> dict:
-    import json as _json
-    return {
-        "id": f.id,
-        "created_at": f.created_at.isoformat(),
-        "created_by_email": f.email,
-        "route": f.route,
-        "element_context": _json.loads(f.element_context) if f.element_context else {},
-        "user_message": f.user_message,
-        "category": f.category,
-        "status": f.status,
-        "assignee": f.assignee,
-        "priority": f.priority,
-        "resolution_note": f.resolution_note,
-        "triaged_at": f.triaged_at.isoformat() if f.triaged_at else None,
-    }
-
-
-def _feedback_admin_assignees_sync_fallback(auth: AuthContext) -> list[dict]:
-    """Local mock-auth fallback: current admin only (mirrors JWT group, not env roster)."""
-    from cf_access import ENABLE_MOCK_AUTH
-
-    if ENABLE_MOCK_AUTH and auth.is_admin and auth.email:
-        email = auth.email.lower().strip()
-        name = email.split("@")[0].replace(".", " ").replace("-", " ").title()
-        return [{"email": email, "name": name}]
-    return []
-
-
-async def _feedback_admin_assignees(auth: AuthContext) -> list[dict]:
-    """Who a feedback ticket can be assigned to: the administrators.
-
-    Resolved from the directory by group membership. When no directory is
-    configured the directory returns nobody, and the caller falls back to the
-    requesting administrator so the page still works on a fresh deployment.
-    """
-    from auth_policy import ADMIN_GROUPS
-    from org_directory import get_admin_group_members
-
-    try:
-        assignees = await get_admin_group_members(tuple(ADMIN_GROUPS))
-    except Exception:
-        assignees = []
-    if assignees:
-        return [{"email": p.email, "name": p.name or p.email} for p in assignees]
-
-    return _feedback_admin_assignees_sync_fallback(auth)
-
-
-@app.get("/api/admin/feedback/assignees")
-async def list_feedback_assignees(auth: AuthContext = Depends(get_current_user)):
-    if not auth.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    assignees = await _feedback_admin_assignees(auth)
-    if not assignees:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "No admin assignees found. Configure a directory provider "
-                "(DIRECTORY_PROVIDER) so the backend can resolve members of the "
-                "groups named in ADMIN_GROUPS."
-            ),
-        )
-    return {"assignees": assignees}
-
-
-@app.post("/api/feedback", status_code=201)
-def create_feedback(body: FeedbackCreate, auth: AuthContext = Depends(get_current_user)):
-    import json as _json
-    from cf_access import ENABLE_MOCK_AUTH
-
-    if body.category not in _FEEDBACK_CATEGORIES:
-        raise HTTPException(status_code=422, detail=f"Invalid category. Must be one of: {sorted(_FEEDBACK_CATEGORIES)}")
-
-    message = _strip_html(body.user_message.strip())
-    if not message:
-        raise HTTPException(status_code=422, detail="user_message cannot be empty")
-    if len(message) > 4000:
-        raise HTTPException(status_code=422, detail="user_message must be <= 4000 characters")
-
-    safe_ctx = _sanitize_element_context(body.element_context)
-    route = str(body.route)[:1000]
-
-    if ENABLE_MOCK_AUTH:
-        from mock_feedback import create_mock_feedback
-
-        return create_mock_feedback({
-            "email": auth.email,
-            "route": route,
-            "element_context": safe_ctx,
-            "user_message": message,
-            "category": body.category,
-        })
-
-    db = SessionLocal()
-    try:
-        row = Feedback(
-            owner_sub=auth.sub,
-            email=auth.email,
-            route=route,
-            element_context=_json.dumps(safe_ctx),
-            user_message=message,
-            category=body.category,
-            status="open",
-        )
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        return _feedback_to_dict(row)
-    finally:
-        db.close()
-
-
-@app.get("/api/feedback")
-def list_feedback(auth: AuthContext = Depends(get_current_user), limit: int = 200):
-    from cf_access import ENABLE_MOCK_AUTH
-
-    if not auth.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    if ENABLE_MOCK_AUTH:
-        from mock_feedback import list_mock_feedback
-
-        return list_mock_feedback()[:limit]
-    db = SessionLocal()
-    try:
-        rows = (
-            db.query(Feedback)
-            .order_by(Feedback.created_at.desc())
-            .limit(limit)
-            .all()
-        )
-        return [_feedback_to_dict(r) for r in rows]
-    finally:
-        db.close()
-
-
-@app.patch("/api/feedback/{feedback_id}")
-async def update_feedback(feedback_id: str, body: FeedbackPatch, auth: AuthContext = Depends(get_current_user)):
-    if not auth.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    if body.status is not None and body.status not in _FEEDBACK_STATUSES:
-        raise HTTPException(status_code=422, detail=f"Invalid status. Must be one of: {sorted(_FEEDBACK_STATUSES)}")
-    if body.priority is not None and body.priority != "" and body.priority not in _FEEDBACK_PRIORITIES:
-        raise HTTPException(status_code=422, detail=f"Invalid priority. Must be one of: {sorted(_FEEDBACK_PRIORITIES)}")
-
-    if body.assignee is not None and body.assignee.strip():
-        allowed = {a["email"].lower() for a in await _feedback_admin_assignees(auth)}
-        if allowed and body.assignee.strip().lower() not in allowed:
-            raise HTTPException(status_code=422, detail="Assignee must be a member of a group named in ADMIN_GROUPS")
-
-    from cf_access import ENABLE_MOCK_AUTH
-
-    if ENABLE_MOCK_AUTH:
-        from mock_feedback import patch_mock_feedback
-
-        patch_payload: dict = {}
-        if body.status is not None:
-            patch_payload["status"] = body.status
-        if body.resolution_note is not None:
-            patch_payload["resolution_note"] = body.resolution_note.strip()[:2000] or None
-        if body.assignee is not None:
-            patch_payload["assignee"] = body.assignee.strip()[:320] or None
-        if body.priority is not None:
-            patch_payload["priority"] = body.priority.strip() or None
-        updated = patch_mock_feedback(feedback_id, patch_payload)
-        if not updated:
-            raise HTTPException(status_code=404, detail="Feedback entry not found")
-        return updated
-
-    db = SessionLocal()
-    try:
-        row = db.get(Feedback, feedback_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="Feedback entry not found")
-        if body.status is not None:
-            row.status = body.status
-            if body.status in ("triaged", "in_progress", "done") and row.triaged_at is None:
-                row.triaged_at = datetime.now(timezone.utc)
-        if body.resolution_note is not None:
-            row.resolution_note = body.resolution_note.strip()[:2000] or None
-        if body.assignee is not None:
-            row.assignee = body.assignee.strip()[:320] or None
-        if body.priority is not None:
-            row.priority = body.priority.strip() or None
-        db.commit()
-        return _feedback_to_dict(row)
-    finally:
-        db.close()
