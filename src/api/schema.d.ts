@@ -4359,6 +4359,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/skills/{slug}/evals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Evals */
+        get: operations["get_evals_api_skills__slug__evals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills/{slug}/evals/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Eval Case */
+        post: operations["create_eval_case_api_skills__slug__evals_cases_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills/{slug}/evals/cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Eval Case */
+        put: operations["update_eval_case_api_skills__slug__evals_cases__case_id__put"];
+        post?: never;
+        /** Delete Eval Case */
+        delete: operations["delete_eval_case_api_skills__slug__evals_cases__case_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills/{slug}/evals/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Eval Runs */
+        get: operations["list_eval_runs_api_skills__slug__evals_runs_get"];
+        put?: never;
+        /** Start Eval Run */
+        post: operations["start_eval_run_api_skills__slug__evals_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills/{slug}/evals/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Eval Run */
+        get: operations["get_eval_run_api_skills__slug__evals_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/skills/{slug}/name": {
         parameters: {
             query?: never;
@@ -5711,6 +5798,114 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /** EvalCaseIn */
+        EvalCaseIn: {
+            /** Expected */
+            expected: string;
+            /**
+             * Grader
+             * @enum {string}
+             */
+            grader: "contains" | "regex" | "exact" | "llm_judge";
+            /** Input Prompt */
+            input_prompt: string;
+            /** Name */
+            name: string;
+        };
+        /** EvalCaseOut */
+        EvalCaseOut: {
+            /** Created At */
+            created_at?: string | null;
+            /** Created By Email */
+            created_by_email?: string | null;
+            /** Expected */
+            expected: string;
+            /** Grader */
+            grader: string;
+            /** Id */
+            id: string;
+            /** Input Prompt */
+            input_prompt: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** EvalCaseResultOut */
+        EvalCaseResultOut: {
+            /** Case Id */
+            case_id: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Grader */
+            grader: string;
+            /** Name */
+            name: string;
+            /** Output Excerpt */
+            output_excerpt: string;
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+        };
+        /** EvalOverviewOut */
+        EvalOverviewOut: {
+            /** Cases */
+            cases: components["schemas"]["EvalCaseOut"][];
+            /** Gate Enabled */
+            gate_enabled: boolean;
+            last_run?: components["schemas"]["EvalRunOut"] | null;
+            /** Live Content Hash */
+            live_content_hash: string;
+            /** Max Cases Per Run */
+            max_cases_per_run: number;
+            /** Max Cases Per Skill */
+            max_cases_per_skill: number;
+        };
+        /** EvalRunListOut */
+        EvalRunListOut: {
+            /** Runs */
+            runs: components["schemas"]["EvalRunOut"][];
+        };
+        /** EvalRunOut */
+        EvalRunOut: {
+            /** Content Hash */
+            content_hash: string;
+            /** Error */
+            error?: string | null;
+            /** Errored */
+            errored: number;
+            /** Failed */
+            failed: number;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Id */
+            id: string;
+            /** Model */
+            model: string;
+            /** Pass Rate */
+            pass_rate?: number | null;
+            /** Passed */
+            passed: number;
+            /** Results */
+            results?: components["schemas"]["EvalCaseResultOut"][];
+            /** Skipped */
+            skipped: number;
+            /** Slug */
+            slug: string;
+            /** Started At */
+            started_at?: string | null;
+            /** Status */
+            status: string;
+            /** Submission Id */
+            submission_id?: string | null;
+            /** Total */
+            total: number;
+            /** Trigger */
+            trigger: string;
         };
         /** ExtendBody */
         ExtendBody: {
@@ -14649,6 +14844,236 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_evals_api_skills__slug__evals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalOverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_eval_case_api_skills__slug__evals_cases_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvalCaseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCaseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_eval_case_api_skills__slug__evals_cases__case_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvalCaseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalCaseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_eval_case_api_skills__slug__evals_cases__case_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_eval_runs_api_skills__slug__evals_runs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_eval_run_api_skills__slug__evals_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_eval_run_api_skills__slug__evals_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvalRunOut"];
                 };
             };
             /** @description Validation Error */
