@@ -19,6 +19,7 @@ import { SystemLinksConfirmModal } from "@/components/SystemLinksConfirmModal";
 import { SkillAiEditPanel, type AiEditPreview } from "@/components/SkillAiEditPanel";
 import { SkillMarkdownDiff } from "@/components/SkillMarkdownDiff";
 import { SkillVersionHistoryTab } from "@/components/SkillVersionHistoryTab";
+import { SkillEvalsTab } from "../features/skillEvals/SkillEvalsTab";
 import { SkillArtifactCreateModal } from "@/components/SkillArtifactCreateModal";
 import { SkillArtifactViewModal } from "@/components/SkillArtifactViewModal";
 import { SkillArtifactSidebarList } from "@/components/SkillArtifactSidebarList";
@@ -217,7 +218,7 @@ export default function SkillDetailPage() {
     : null;
 
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"readme" | "raw" | "diff" | "edit" | "history">("readme");
+  const [activeTab, setActiveTab] = useState<"readme" | "raw" | "diff" | "edit" | "history" | "evals">("readme");
   const [aiPreview, setAiPreview] = useState<AiEditPreview | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [manualDraft, setManualDraft] = useState("");
@@ -557,6 +558,7 @@ export default function SkillDetailPage() {
                         { id: "raw" as const, label: "Raw" },
                         ...(canManage ? [{ id: "edit" as const, label: "Edit" }] : []),
                         ...(canManage ? [{ id: "history" as const, label: "Audit" }] : []),
+                        ...(canManage ? [{ id: "evals" as const, label: "Evals" }] : []),
                       ]).map(tab => (
                         <button
                           key={tab.id}
@@ -633,6 +635,8 @@ export default function SkillDetailPage() {
                         spellCheck={false}
                       />
                     </div>
+                  ) : activeTab === "evals" && canManage && slug ? (
+                    <SkillEvalsTab slug={slug} />
                   ) : activeTab === "history" && canManage && slug ? (
                     <SkillVersionHistoryTab
                       key={historyRefreshKey}
