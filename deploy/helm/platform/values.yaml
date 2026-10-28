@@ -26,7 +26,12 @@ replicaCount:
 
 scheduler:
   enabled: true
-  replicas: 1
+  # Two replicas elect a leader through a Postgres advisory lock; the standby
+  # takes over within SCHEDULER_LEASE_CHECK_S seconds. Needs PostgreSQL
+  # (DATABASE_URL below). With SQLite, set this to 1.
+  replicas: 2
+  # Prometheus port for scheduler_is_leader. Empty disables it.
+  metricsPort: "9100"
 
 slackConsumer:
   enabled: false

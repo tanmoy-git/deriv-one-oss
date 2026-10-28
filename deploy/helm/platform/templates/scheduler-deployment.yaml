@@ -36,6 +36,13 @@ spec:
           env:
             - name: ENABLE_CRON_SCHEDULER
               value: "true"
+{{- if .Values.scheduler.metricsPort }}
+            - name: SCHEDULER_METRICS_PORT
+              value: {{ .Values.scheduler.metricsPort | quote }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.scheduler.metricsPort | int }}
+{{- end }}
           resources:
             {{- toYaml .Values.resources.scheduler | nindent 12 }}
 {{- with .Values.nodeSelector }}
