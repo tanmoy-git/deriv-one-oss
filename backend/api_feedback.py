@@ -18,7 +18,10 @@ router = APIRouter()
 _FEEDBACK_CATEGORIES = frozenset({"bug", "feature", "ux", "other"})
 _FEEDBACK_STATUSES = frozenset({"open", "triaged", "in_progress", "done", "wont_do"})
 _FEEDBACK_PRIORITIES = frozenset({"low", "medium", "high", "urgent"})
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
+# `<` is excluded inside a tag so a failed match stops at the next `<`. With
+# `<[^>]+>`, text like "<<<<…" without a `>` made every `<` rescan to the end of
+# the string: quadratic time on user input.
+_HTML_TAG_RE = re.compile(r"<[^<>]+>")
 
 
 def _strip_html(text: str) -> str:

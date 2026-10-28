@@ -70,3 +70,22 @@ def test_identity_gate_runs_on_factory_built_app(client, monkeypatch):
 
     monkeypatch.setattr(cf_access, "ENABLE_MOCK_AUTH", False)
     assert client.get("/api/memory").status_code == 401
+
+
+def test_auth_failures_return_fixed_messages(client, monkeypatch):
+    import auth_middleware
+    import cf_access
+
+    monkeypatch.setattr(cf_access, "ENABLE_MOCK_AUTH", False)
+    res = client.get("/api/memory")
+    assert res.status_code == 401
+    assert res.json() == {"detail": auth_middleware.UNAUTHENTICATED_DETAIL}
+
+    def deny(_headers):
+        raise PermissionError("JWT has no recognizable groups claim; set GROUPS_JWT_CLAIM_KEYS")
+
+    monkeypatch.setattr(auth_middleware, "build_auth_context", deny)
+    res = client.get("/api/memory")
+    assert res.status_code == 403
+    assert res.json() == {"detail": auth_middleware.FORBIDDEN_DETAIL}
+    assert "GROUPS_JWT_CLAIM_KEYS" not in res.text

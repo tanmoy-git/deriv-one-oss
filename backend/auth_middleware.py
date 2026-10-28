@@ -27,6 +27,9 @@ from tenancy import request_owner_sub
 
 logger = logging.getLogger(__name__)
 
+UNAUTHENTICATED_DETAIL = "Not authenticated"
+FORBIDDEN_DETAIL = "Your account does not have access to this application."
+
 
 async def identity_gate(request: Request, call_next):
     """Authenticate every /api route from the verified identity token."""
@@ -69,15 +72,18 @@ async def identity_gate(request: Request, call_next):
 
     try:
         auth = build_auth_context(request.headers)
+    # The exception text names claims, headers and settings; it goes to the
+    # server log for operators, and clients get a fixed message.
     except PermissionError as exc:
         logger.warning(
             "Access JWT rejected groups/policy (403): %s "
             "(if Cf-Access-Jwt-Assertion is missing you would get 401 instead)",
             str(exc),
         )
-        return JSONResponse(status_code=403, content={"detail": str(exc)})
+        return JSONResponse(status_code=403, content={"detail": FORBIDDEN_DETAIL})
     except ValueError as exc:
-        return JSONResponse(status_code=401, content={"detail": str(exc)})
+        logger.info("Request without a usable identity token (401): %s", exc)
+        return JSONResponse(status_code=401, content={"detail": UNAUTHENTICATED_DETAIL})
     except AuthConfigurationError:
         logger.exception("JWT auth misconfiguration")
         return JSONResponse(
