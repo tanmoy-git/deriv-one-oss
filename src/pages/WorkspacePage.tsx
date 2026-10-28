@@ -676,11 +676,13 @@ function ChatPane({
                       if (isError) {
                         const attachmentError = /^\*\*Attachment error/i.test(displayContent);
                         const notConfigured = /MODEL_GATEWAY|not configured|API key/i.test(displayContent);
+                        // Spend budgets (Admin > Budgets): show the reason, it tells the user what to do.
+                        const overBudget = /monthly spend limit/i.test(displayContent);
                         return <div className="workspace-service-error" role="alert">
                           <AlertCircle size={18} />
-                          <div><strong>{attachmentError ? "That file couldn’t be attached" : notConfigured ? "The agent isn’t connected yet" : "That request didn’t go through"}</strong>
-                            <p>{attachmentError ? displayContent.replace(/^\*\*Attachment error:\*\*\s*/i, "") : notConfigured ? `This workspace needs an AI connection before ${appName} can respond. Ask your workspace administrator to connect it. Your message is still here.` : "Your conversation is still here. Review your request and try again when you’re ready."}</p>
-                            {!attachmentError && <details><summary>Technical details</summary><p>{displayContent.replace(/\*\*/g, "")}</p></details>}
+                          <div><strong>{attachmentError ? "That file couldn’t be attached" : overBudget ? "Monthly spend limit reached" : notConfigured ? "The agent isn’t connected yet" : "That request didn’t go through"}</strong>
+                            <p>{attachmentError ? displayContent.replace(/^\*\*Attachment error:\*\*\s*/i, "") : overBudget ? displayContent.replace(/^\*\*Error:\*\*\s*/i, "") : notConfigured ? `This workspace needs an AI connection before ${appName} can respond. Ask your workspace administrator to connect it. Your message is still here.` : "Your conversation is still here. Review your request and try again when you’re ready."}</p>
+                            {!attachmentError && !overBudget && <details><summary>Technical details</summary><p>{displayContent.replace(/\*\*/g, "")}</p></details>}
                             <button disabled={streaming} onClick={() => { const lastUser = [...tab.messages].reverse().find(m => m.role === "user"); if (lastUser) chatComposerRef.current?.setText(lastUser.content); }}><Pencil size={14} />Revise my request</button>
                           </div>
                         </div>;
