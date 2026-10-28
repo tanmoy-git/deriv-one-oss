@@ -414,6 +414,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Budgets */
+        get: operations["list_budgets_api_admin_budgets_get"];
+        /** Upsert Budget */
+        put: operations["upsert_budget_api_admin_budgets_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/budgets/{budget_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Budget */
+        delete: operations["delete_budget_api_admin_budgets__budget_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Budget */
+        patch: operations["patch_budget_api_admin_budgets__budget_id__patch"];
+        trace?: never;
+    };
     "/api/admin/directory": {
         parameters: {
             query?: never;
@@ -5563,6 +5599,37 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /** BudgetPatch */
+        BudgetPatch: {
+            /** Enforce */
+            enforce?: boolean | null;
+            /** Monthly Limit Usd */
+            monthly_limit_usd?: number | null;
+            /** Soft Limit Pct */
+            soft_limit_pct?: number | null;
+        };
+        /** BudgetUpsert */
+        BudgetUpsert: {
+            /**
+             * Enforce
+             * @default true
+             */
+            enforce: boolean;
+            /** Monthly Limit Usd */
+            monthly_limit_usd: number;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "org" | "agent" | "user";
+            /** Scope Id */
+            scope_id?: string | null;
+            /**
+             * Soft Limit Pct
+             * @default 80
+             */
+            soft_limit_pct: number;
+        };
         /** ChannelConfigCreate */
         ChannelConfigCreate: {
             /** Access Policy */
@@ -6981,6 +7048,129 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_budgets_api_admin_budgets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    upsert_budget_api_admin_budgets_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_budget_api_admin_budgets__budget_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_budget_api_admin_budgets__budget_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                budget_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetPatch"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

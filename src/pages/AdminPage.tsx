@@ -6,6 +6,7 @@
  *   4. Skills          — per-skill access roster
  *   5. Infrastructure  — live pod metrics
  *   6. Usage           — token consumption
+ *      Budgets         — monthly spend limits (src/features/budgets)
  *   7. Feedback        — user-submitted UI feedback inbox
  *   8. Systems         — connected systems ↔ skills ↔ agents
  */
@@ -57,6 +58,7 @@ import {
   BarChart2,
   Rocket,
   Server,
+  Wallet,
 } from "lucide-react";
 import {
   AreaChart,
@@ -77,6 +79,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { parseUTC } from "@/lib/time";
 import AdminFeedbackList from "@/src/feedback/AdminFeedbackList";
+import BudgetsTab from "@/src/features/budgets/BudgetsTab";
 import { AdminGrantModal } from "@/components/AdminGrantModal";
 import { SystemCriticalityBadge } from "@/components/SystemCriticalityBadge";
 import { useNavigate } from "react-router-dom";
@@ -2137,7 +2140,7 @@ function UsageTab() {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 
-type TopTab = "access" | "agent-access" | "users" | "departments" | "skills" | "infra" | "usage" | "feedback" | "analytics" | "slack-scopes" | "systems";
+type TopTab = "access" | "agent-access" | "users" | "departments" | "skills" | "infra" | "usage" | "budgets" | "feedback" | "analytics" | "slack-scopes" | "systems";
 
 export default function AdminPage() {
   const branding = useBranding();
@@ -2178,6 +2181,7 @@ export default function AdminPage() {
     { id: "skills",       label: "Skills Directory", icon: <Layers className="w-3.5 h-3.5" /> },
     { id: "infra",        label: "Infrastructure",   icon: <Activity className="w-3.5 h-3.5" /> },
     { id: "usage",        label: "Usage",            icon: <TrendingUp className="w-3.5 h-3.5" /> },
+    { id: "budgets",      label: "Budgets",          icon: <Wallet className="w-3.5 h-3.5" /> },
     { id: "feedback",     label: "Feedback",         icon: <MessageSquare className="w-3.5 h-3.5" /> },
     { id: "analytics",    label: "Analytics",        icon: <BarChart2 className="w-3.5 h-3.5" /> },
     { id: "slack-scopes", label: "Slack Scopes",     icon: <ShieldCheck className="w-3.5 h-3.5" /> },
@@ -2271,6 +2275,7 @@ export default function AdminPage() {
 
         {tab === "infra"      && <InfraTab />}
         {tab === "usage"      && <UsageTab />}
+        {tab === "budgets"    && <BudgetsTab />}
         {tab === "analytics"  && <AnalyticsTab />}
         {tab === "feedback" && (
           <div className="h-full overflow-hidden">

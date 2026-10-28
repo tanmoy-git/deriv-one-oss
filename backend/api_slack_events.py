@@ -4792,6 +4792,18 @@ async def _call_llm(
             text="I'm unable to process your request right now. Please try again later.",
         )
 
+    from agent_failure_alerts import FAILURE_KIND_BUDGET
+    from spend_budgets import check_spend_allowed
+
+    spend = await asyncio.to_thread(check_spend_allowed, agent_id=str(agent.id))
+    if not spend.allowed:
+        logger.info("agent_llm_blocked_by_budget agent_id=%s budget_id=%s", agent.id, spend.budget_id)
+        return AgentLlmOutcome(
+            text=spend.message,
+            failure_kind=FAILURE_KIND_BUDGET,
+            failure_detail=f"budget_id={spend.budget_id}",
+        )
+
     requested = getattr(agent, "llm_model", None)
     model = resolve_agent_model(agent)
     transport = agent_model_transport(model)
