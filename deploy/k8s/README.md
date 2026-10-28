@@ -19,7 +19,7 @@ For architecture, managed-service mapping, and production checklists, see
 | `secret.example.yaml` | Secret placeholders (use External Secrets in prod) |
 | `backend-deployment.yaml` | API Deployment + Service `backend:8000` (matches nginx proxy) |
 | `frontend-deployment.yaml` | UI Deployment + Service (port 80) |
-| `scheduler-deployment.yaml` | Scheduler worker (**exactly one replica**) |
+| `scheduler-deployment.yaml` | Scheduler worker (2 replicas with a Postgres leader lease; 1 on SQLite) |
 | `ingress.example.yaml` | TLS ingress → frontend |
 
 ## Quick apply

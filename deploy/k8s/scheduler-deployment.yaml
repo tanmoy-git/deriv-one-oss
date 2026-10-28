@@ -7,8 +7,9 @@ metadata:
     app.kubernetes.io/name: platform
     app.kubernetes.io/component: scheduler
 spec:
-  # Exactly one replica unless you add leader election.
-  replicas: 1
+  # Replicas elect a leader through a Postgres advisory lock, so a standby
+  # takes over if the leader dies. Needs PostgreSQL; with SQLite use 1.
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: platform

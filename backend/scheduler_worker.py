@@ -7,8 +7,12 @@ Run:
     python -m scheduler_worker
 
 Deployment:
-    - Exactly ONE replica must run at all times (strategy: Recreate in K8s).
-    - Do NOT scale to > 1 replica without adding Redis-based leader election first.
+    - Run two replicas on PostgreSQL. They elect a leader through a Postgres
+      advisory lock (scheduler_leader.py); only the leader registers and fires
+      jobs, and the standby takes over within SCHEDULER_LEASE_CHECK_S seconds
+      if the leader dies. A leader that loses its lock exits so it cannot fire
+      jobs a new leader is also firing.
+    - On SQLite there is no lock to share, so run exactly one replica.
     - Future: replace per-automation APScheduler jobs with native K8s CronJob objects.
 
 Environment (same as backend pods — injected via ConfigMap + ExternalSecret):
@@ -16,6 +20,8 @@ Environment (same as backend pods — injected via ConfigMap + ExternalSecret):
     MODEL_GATEWAY_URL      model gateway base URL
     MODEL_GATEWAY_API_KEY       gateway API key
     MODEL                 Claude model slug
+    SCHEDULER_LEASE_CHECK_S  seconds between leader checks (default 10)
+    SCHEDULER_METRICS_PORT   serve Prometheus metrics on this port (unset: off)
 """
 
 from __future__ import annotations
@@ -32,11 +38,9 @@ load_dotenv()
 # This process owns all recurring cron jobs — must be set before importing main.
 os.environ["ENABLE_CRON_SCHEDULER"] = "true"
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    stream=sys.stdout,
-)
+from logging_setup import configure_logging  # noqa: E402
+
+configure_logging()
 logger = logging.getLogger("scheduler_worker")
 
 # ── Import shared logic from main.py ──────────────────────────────────────────
@@ -52,7 +56,9 @@ from main import (  # noqa: E402
 import main as _main  # noqa: E402
 import agent_scheduled_tasks as _agent_tasks  # noqa: E402
 from agent_worker import spawn_automation, spawn_agent_scheduled_task  # noqa: E402
-from database import Memory, SessionLocal, init_db  # noqa: E402
+from database import Memory, SessionLocal, engine, init_db  # noqa: E402
+from scheduler_leader import LeaderLease  # noqa: E402
+import metrics as _metrics  # noqa: E402
 from skill_submission_models import init_skill_submission_tables  # noqa: E402
 from agent_scheduled_tasks import load_and_schedule_agent_tasks  # noqa: E402
 
@@ -105,10 +111,14 @@ def _resync_agent_scheduled_tasks() -> None:
         logger.exception("Agent scheduled-task resync failed")
 
 
+_lease = LeaderLease(engine)
+
+
 def _handle_shutdown(signum, frame):
     logger.info("Received signal %d — shutting down scheduler", signum)
     if scheduler.running:
         scheduler.shutdown(wait=False)
+    _lease.release()
     sys.exit(0)
 
 
@@ -125,6 +135,20 @@ def main() -> None:
         pull_from_store()
     except Exception:
         logger.exception("Initial skills pull failed in scheduler worker")
+
+    metrics_port = os.environ.get("SCHEDULER_METRICS_PORT", "").strip()
+    if metrics_port:
+        _metrics.serve_on_port(int(metrics_port))
+        logger.info("Serving Prometheus metrics on port %s", metrics_port)
+
+    # Standbys stop here until the leader goes away. SIGTERM must still work
+    # while waiting, so install the handlers first.
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+    check_every = float(os.environ.get("SCHEDULER_LEASE_CHECK_S", "10"))
+    _metrics.SCHEDULER_IS_LEADER.set(0)
+    _lease.wait_until_leader(check_every=check_every)
+    _metrics.SCHEDULER_IS_LEADER.set(1)
 
     # Register automations
     count = _load_and_schedule_automations()
@@ -251,19 +275,24 @@ def main() -> None:
         t.daemon = True
         t.start()
 
-    # Register graceful shutdown handlers
-    signal.signal(signal.SIGTERM, _handle_shutdown)
-    signal.signal(signal.SIGINT, _handle_shutdown)
-
     logger.info("Scheduler worker running — press Ctrl+C to stop")
     try:
         while True:
-            time.sleep(30)
+            time.sleep(check_every)
+            if not _lease.still_held():
+                # Another replica may already be leader. Stop firing jobs at
+                # once and exit so the orchestrator restarts this pod as a
+                # standby.
+                logger.error("Lost the scheduler lease — stopping to avoid running jobs twice")
+                _metrics.SCHEDULER_IS_LEADER.set(0)
+                scheduler.shutdown(wait=False)
+                os._exit(1)
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt — shutting down")
     finally:
         if scheduler.running:
             scheduler.shutdown(wait=True)
+        _lease.release()
         logger.info("Scheduler worker stopped")
 
 
