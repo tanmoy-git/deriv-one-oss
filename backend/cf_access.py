@@ -45,9 +45,22 @@ ENABLE_MOCK_AUTH = _env_bool("ENABLE_MOCK_AUTH")
 
 
 def reload_auth_env_flags() -> None:
-    """Re-read auth flags from os.environ after platform.env is applied."""
-    global ENABLE_MOCK_AUTH
+    """Re-read auth settings from os.environ after platform.env is applied.
+
+    The setup wizard can switch from mock auth to OIDC at runtime, so the
+    issuer, audience and JWKS settings must be re-read along with the mock
+    flag, and the cached JWKS client dropped. Otherwise JWT validation keeps
+    the import-time (empty) values and every request fails until a restart.
+    """
+    global ENABLE_MOCK_AUTH, TEAM_DOMAIN, OIDC_ISSUER, OIDC_JWKS_URL, POLICY_AUD
+    global _resolved_jwks_uri, _jwks
     ENABLE_MOCK_AUTH = _env_bool("ENABLE_MOCK_AUTH")
+    TEAM_DOMAIN = os.environ.get("TEAM_DOMAIN", "").strip().rstrip("/")
+    OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "").strip().rstrip("/") or TEAM_DOMAIN
+    OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", "").strip()
+    POLICY_AUD = os.environ.get("POLICY_AUD", "").strip()
+    _resolved_jwks_uri = None
+    _jwks = None
 
 # When true, any valid JWT (regardless of groups claim) receives member access.
 # Admins still need their group in the token.
