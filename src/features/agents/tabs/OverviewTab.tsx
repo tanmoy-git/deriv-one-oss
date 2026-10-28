@@ -146,14 +146,18 @@ export function ViewMode({
     }
   };
 
+  // Absent on the public record shown to viewers without access.
+  const skillIds = agent.skill_ids ?? [];
+  const channelIds = agent.channel_ids ?? [];
+
   return (
     <div className="space-y-5">
       <Card title="Skills">
-        {agent.skill_ids.length === 0 ? (
+        {skillIds.length === 0 ? (
           <p className="text-xs text-slate-400">No skills configured.</p>
         ) : (
           <ul className="space-y-1.5">
-            {agent.skill_ids.map(slug => {
+            {skillIds.map(slug => {
               const meta = skillList.find(m => m.slug === slug);
               return (
                 <li key={slug} className="text-sm text-slate-700 flex items-center gap-2">
@@ -251,7 +255,7 @@ export function ViewMode({
               <button
                 type="button"
                 onClick={generateSkillIndex}
-                disabled={generatingIndex || agent.skill_ids.length === 0}
+                disabled={generatingIndex || skillIds.length === 0}
                 className="text-xs font-medium px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
               >
                 {generatingIndex ? "Generating…" : agent.skill_index_text ? "Regenerate index" : "Generate index"}
@@ -300,11 +304,11 @@ export function ViewMode({
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Channels</p>
-            {agent.channel_ids.length === 0 ? (
+            {channelIds.length === 0 ? (
               <p className="text-sm text-slate-400">None configured.</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {agent.channel_ids.map(ch => (
+                {channelIds.map(ch => (
                   <span
                     key={ch}
                     className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2 py-0.5"
