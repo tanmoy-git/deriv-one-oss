@@ -263,12 +263,9 @@ def spawn_automation(automation_id: str, timeout: int = _AUTOMATION_TIMEOUT_S) -
 
 def _setup_child_logging(label: str) -> None:
     """Configure stdout logging for a freshly spawned child process."""
-    logging.basicConfig(
-        level=os.environ.get("LOG_LEVEL", "INFO"),
-        format=f"%(asctime)s %(levelname)s %(name)s [{label}] %(message)s",
-        stream=sys.stdout,
-        force=True,
-    )
+    from logging_setup import configure_logging
+
+    configure_logging(text_format=f"%(asctime)s %(levelname)s %(name)s [{label}] %(message)s", label=label)
 
 
 def _scrub_subprocess_env() -> None:

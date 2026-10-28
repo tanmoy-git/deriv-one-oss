@@ -146,4 +146,11 @@ def create_app(*, lifespan: Optional[Callable[[FastAPI], Any]] = None) -> FastAP
         allow_headers=["*"],
     )
     app.middleware("http")(identity_gate)
+
+    import metrics
+
+    if metrics.enabled():
+        app.add_api_route("/metrics", metrics.metrics_endpoint, include_in_schema=False)
+        # Outermost, so requests identity_gate rejects are counted too.
+        app.middleware("http")(metrics.http_metrics_middleware)
     return app
