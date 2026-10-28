@@ -8,7 +8,7 @@
 #
 # docker compose builds and tags this automatically. To build it by hand:
 #   docker build -t platform/sandbox-python:latest docker/sandbox/
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:6b25cbe6577518889d553cdd5a5da97d259348d8f6e45b527dd731caaba27a07
 
 RUN pip install --no-cache-dir \
     requests==2.32.3 \
