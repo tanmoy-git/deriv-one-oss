@@ -616,6 +616,7 @@ async def confirm_system_links(
     submission_id: str,
     body: ConfirmSystemLinksPayload,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(_db),
 ):
     """Human confirms (and may edit) the auto-detected system-access list for a
@@ -715,6 +716,15 @@ async def confirm_system_links(
                 )
             )
 
+    # Eval gate runs before anything is written, so a blocked publish leaves
+    # the live skill and its system links untouched.
+    from fastapi.concurrency import run_in_threadpool
+
+    eval_gate = await run_in_threadpool(_eval_gate_before_publish, submission, db)
+    if eval_gate and eval_gate["blocked"]:
+        db.refresh(submission)
+        return {**submission_to_dict(submission), "eval_gate": eval_gate}
+
     from skill_system_links_model import upsert_skill_system_links
 
     upsert_skill_system_links(db, submission.proposed_slug, final_results)
@@ -736,6 +746,7 @@ async def confirm_system_links(
     db.commit()
 
     is_edit = submission.editor_sub is not None
+    previous_content = _live_skill_content(submission.proposed_slug)
     try:
         if is_edit:
             _publish_skill_edit(submission, skip_system_refresh=True)
@@ -743,6 +754,14 @@ async def confirm_system_links(
             _publish_approved_skill(submission, skip_system_refresh=True)
         submission.review_status = REVIEW_STATUS_PASS
         db.commit()
+        if eval_gate is None:
+            background_tasks.add_task(
+                _record_eval_run_after_publish,
+                submission.proposed_slug,
+                submission.skill_file_content,
+                previous_content,
+                submission.id,
+            )
     except Exception:
         logger.exception(
             "confirm_system_links: failed to publish '%s' after confirmation", submission.proposed_slug
@@ -756,7 +775,10 @@ async def confirm_system_links(
         db.commit()
 
     db.refresh(submission)
-    return submission_to_dict(submission)
+    out = submission_to_dict(submission)
+    if eval_gate:
+        out["eval_gate"] = eval_gate
+    return out
 
 
 # ── Admin — all submissions ────────────────────────────────────────────────────
@@ -1543,8 +1565,17 @@ def _apply_proposed_system_links(submission: SkillSubmission, db: Session, propo
                 "_apply_proposed_system_links: no system-access change for edit of '%s' — publishing directly",
                 slug,
             )
+            eval_gate = _eval_gate_before_publish(submission, db)
+            if eval_gate and eval_gate["blocked"]:
+                return
+            previous_content = _live_skill_content(slug)
             try:
                 _publish_skill_edit(submission)
+                if eval_gate is None:
+                    # Already on a background thread, so recording the run inline is fine.
+                    _record_eval_run_after_publish(
+                        slug, submission.skill_file_content, previous_content, submission.id
+                    )
             except Exception:
                 logger.exception(
                     "_apply_proposed_system_links: failed to publish no-diff edit for '%s'", slug
@@ -1592,6 +1623,72 @@ def _enter_awaiting_confirmation_sync(submission_id: str) -> None:
             logger.error("_enter_awaiting_confirmation_sync: submission %s not found", submission_id)
             return
         _enter_awaiting_confirmation(submission, db)
+    finally:
+        db.close()
+
+
+# ── Eval gate ─────────────────────────────────────────────────────────────────
+
+
+def _live_skill_content(slug: str) -> Optional[str]:
+    path = _skills_dir() / slug / "skill.md"
+    return path.read_text(encoding="utf-8") if path.exists() else None
+
+
+def _eval_gate_before_publish(submission: SkillSubmission, db: Session) -> Optional[dict]:
+    """With SKILL_EVAL_GATE_ENABLED, grade the candidate text before it goes live.
+
+    Returns the gate report, or None when the gate is off, the skill has no
+    eval cases or its text is unchanged. A blocked report has already marked
+    the submission failed (so the author can submit a new edit); the caller
+    must not publish. Errors in the harness itself never block a publish.
+    """
+    import skill_evals
+
+    if not skill_evals.gate_enabled():
+        return None
+    slug = submission.proposed_slug
+    try:
+        report = skill_evals.publish_gate_check(
+            db,
+            slug,
+            submission.skill_file_content,
+            _live_skill_content(slug),
+            submission_id=submission.id,
+            references_dir=_skills_dir() / slug / "references",
+            enabled=True,
+        )
+    except Exception:
+        logger.exception("eval gate: run failed for '%s'; publishing without it", slug)
+        return None
+    if report and report["blocked"]:
+        logger.info("eval gate: blocked publish of '%s' (%s)", slug, report["message"])
+        submission.pending_secrets = None
+        submission.review_status = REVIEW_STATUS_FAIL
+        submission.review_reason = report["message"]
+        db.commit()
+    return report
+
+
+def _record_eval_run_after_publish(
+    slug: str, content: str, previous_content: Optional[str], submission_id: str
+) -> None:
+    """Gate off: still record a run for the newly published text, after the fact."""
+    import skill_evals
+
+    db = SessionLocal()
+    try:
+        skill_evals.publish_gate_check(
+            db,
+            slug,
+            content,
+            previous_content,
+            submission_id=submission_id,
+            references_dir=_skills_dir() / slug / "references",
+            enabled=False,
+        )
+    except Exception:
+        logger.exception("eval run after publish failed for '%s'", slug)
     finally:
         db.close()
 
@@ -2413,6 +2510,14 @@ def delete_skill(slug: str, request: Request, db: Session = Depends(_db)):
 
     db.query(SkillCollaborator).filter(SkillCollaborator.slug == slug).delete()
     db.commit()
+
+    try:
+        from skill_evals import delete_for_slug
+
+        delete_for_slug(db, slug)
+    except Exception:
+        db.rollback()
+        logger.exception("delete_skill: could not delete eval cases for '%s'", slug)
 
     # 1. Delete secrets from the vault and DB
     secret_rows = db.query(SkillSecret).filter(SkillSecret.slug == slug).all()
