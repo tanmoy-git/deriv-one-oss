@@ -2210,10 +2210,13 @@ async def run_python_disabled(owner_sub: str = Depends(deps_owner_sub)):
 
 @app.get("/api/health")
 async def health(request: Request):
+    # Read through the module: the setup wizard reloads these at runtime.
+    import cf_access
+
     auth_mode = (
         "mock"
-        if ENABLE_MOCK_AUTH
-        else ("jwt" if TEAM_DOMAIN and POLICY_AUD else "unconfigured")
+        if cf_access.ENABLE_MOCK_AUTH
+        else ("jwt" if cf_access.OIDC_ISSUER and cf_access.POLICY_AUD else "unconfigured")
     )
     body: dict = {
         "status": "ok",

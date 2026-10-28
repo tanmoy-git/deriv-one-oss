@@ -56,13 +56,19 @@ def _ensure_agent_access(db: Session, agent_id: str, owner_sub: str, email: Opti
             db.query(AgentCollaborator)
             .filter(
                 AgentCollaborator.agent_id == agent_id,
-                AgentCollaborator.email == email,
+                AgentCollaborator.user_email == email.strip().lower(),
             )
             .first()
         )
         if collab:
             return agent
     raise HTTPException(status_code=403, detail="Not allowed")
+
+
+def _request_email(request: Request) -> Optional[str]:
+    """Email of the verified caller, set by the auth middleware."""
+    auth = getattr(request.state, "auth", None)
+    return getattr(auth, "email", None) or None
 
 
 def _defn_to_dict(d: WorkflowDefinition) -> dict[str, Any]:
@@ -133,7 +139,7 @@ def list_workflows(
     owner_sub: str = Depends(request_owner_sub),
     db: Session = Depends(_db),
 ):
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, agent_id, owner_sub, email)
     rows = (
         db.query(WorkflowDefinition)
@@ -152,7 +158,7 @@ def create_workflow(
     owner_sub: str = Depends(request_owner_sub),
     db: Session = Depends(_db),
 ):
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, agent_id, owner_sub, email)
     graph = body.graph
     if graph is None:
@@ -181,7 +187,7 @@ def seed_vertical_slice(
     owner_sub: str = Depends(request_owner_sub),
     db: Session = Depends(_db),
 ):
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, agent_id, owner_sub, email)
     existing = (
         db.query(WorkflowDefinition)
@@ -223,7 +229,7 @@ def publish_workflow(
     owner_sub: str = Depends(request_owner_sub),
     db: Session = Depends(_db),
 ):
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, agent_id, owner_sub, email)
     row = db.get(WorkflowDefinition, workflow_id)
     if not row or row.agent_id != agent_id:
@@ -254,7 +260,7 @@ def list_agent_workflow_runs(
     owner_sub: str = Depends(request_owner_sub),
     db: Session = Depends(_db),
 ):
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, agent_id, owner_sub, email)
     q = db.query(WorkflowRun).filter(WorkflowRun.agent_id == agent_id)
     if status:
@@ -272,7 +278,7 @@ def list_pending_gates(
 ):
     q = db.query(WorkflowRun).filter(WorkflowRun.status == "pending_hitl")
     if agent_id:
-        email = getattr(request.state, "user_email", None)
+        email = _request_email(request)
         _ensure_agent_access(db, agent_id, owner_sub, email)
         q = q.filter(WorkflowRun.agent_id == agent_id)
     else:
@@ -311,7 +317,7 @@ def get_workflow_run(
     run = db.get(WorkflowRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     _ensure_agent_access(db, run.agent_id, owner_sub, email)
     events = (
         db.query(WorkflowRunEvent)
@@ -347,7 +353,7 @@ async def approve_workflow_gate(
     run = db.get(WorkflowRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    email = getattr(request.state, "user_email", None)
+    email = _request_email(request)
     agent = _ensure_agent_access(db, run.agent_id, owner_sub, email)
     gate = run.pending_gate
     if not gate or gate.get("id") != gate_id:
