@@ -1,0 +1,5 @@
+# Findings reviewed and accepted as not secrets. One fingerprint per line, as
+# printed by gitleaks (<commit>:<file>:<rule>:<line>).
+
+# Test fixture: signing_secret_ref="vault/signing" is a reference name, not a key.
+6957e919f95fb72b19dbbf51c608947610fb68ee:backend/tests/test_security_fixes.py:generic-api-key:267
