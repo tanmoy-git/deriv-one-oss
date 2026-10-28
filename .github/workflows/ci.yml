@@ -5,24 +5,55 @@ on:
     branches: [main, master]
   pull_request:
 
+# Jobs only read the repository. Anything that needs more (CodeQL uploads)
+# lives in its own workflow and asks for it there.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions are pinned by commit SHA; the comment is the tag the SHA was taken
+# from. Dependabot (.github/dependabot.yml) keeps both up to date.
 jobs:
   forbidden-patterns:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check for secrets and org-specific hosts
         run: bash scripts/check-forbidden-patterns.sh
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (checksum verified)
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}" -o "$RUNNER_TEMP/$archive"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
+      - name: Scan git history for secrets
+        run: '"$RUNNER_TEMP/gitleaks" git --redact --verbose .'
 
   typescript:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "20"
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - name: No high or critical advisories in runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   python-smoke:
     runs-on: ubuntu-latest
@@ -30,13 +61,28 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: |
+            backend/requirements.lock
+            backend/requirements-dev.txt
+      - run: pip install --require-hashes -r requirements.lock
+      - run: pip install -r requirements-dev.txt
+      - name: requirements.lock matches requirements.txt
+        run: |
+          pip install uv==0.11.7
+          # Seed the output with the committed lock so uv keeps its pins and
+          # only reports a difference when requirements.txt changed.
+          cp requirements.lock "$RUNNER_TEMP/requirements.lock"
+          uv pip compile requirements.txt --generate-hashes --python-version 3.12 \
+            --universal --no-header -o "$RUNNER_TEMP/requirements.lock"
+          diff <(grep -v '^#' requirements.lock) <(grep -v '^#' "$RUNNER_TEMP/requirements.lock") \
+            || { echo "requirements.lock is stale; regenerate it (see requirements.txt)"; exit 1; }
+      - name: No known vulnerabilities in pinned Python dependencies
+        run: pip-audit --require-hashes --disable-pip -r requirements.lock
       - run: python -m pytest tests/ -v
         env:
           ENABLE_MOCK_AUTH: "true"
@@ -52,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: deriv_one
@@ -68,13 +114,13 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/deriv_one
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: backend/requirements.lock
+      - run: pip install --require-hashes -r requirements.lock
       - name: Exactly one head and no duplicate revision ids
         run: |
           alembic heads 2>&1 | tee "$RUNNER_TEMP/heads.txt"
@@ -88,6 +134,6 @@ jobs:
   compose-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate docker compose file
         run: docker compose config > /dev/null

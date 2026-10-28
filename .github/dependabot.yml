@@ -1,0 +1,39 @@
+# Keeps pinned versions current: action SHAs, npm packages, the hashed Python
+# lock and the base-image digests. Python updates land in requirements.lock;
+# regenerate it from requirements.txt if a PR needs a range change.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      pip-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /backend
+      - /docker/sandbox
+      - /docker/sandbox-node
+    schedule:
+      interval: weekly

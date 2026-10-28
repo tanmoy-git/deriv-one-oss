@@ -2,35 +2,21 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 @pytest.fixture
-def db():
+def db(sqlite_session_factory):
     from agents import Agent, AgentCollaborator
-    from database import Base
 
-    engine = create_engine("sqlite://")
-    Base.metadata.create_all(
-        engine, tables=[Agent.__table__, AgentCollaborator.__table__]
-    )
-    session = sessionmaker(bind=engine)()
+    session = sqlite_session_factory(Agent, AgentCollaborator)
     session.add(Agent(id="agent-1", name="Agent", owner_sub="owner-sub", status="active"))
     session.add(AgentCollaborator(agent_id="agent-1", user_email="collab@example.com"))
     session.commit()
-    try:
-        yield session
-    finally:
-        session.close()
+    return session
 
 
 def test_workflow_collaborator_is_allowed(db):
