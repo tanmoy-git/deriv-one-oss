@@ -65,6 +65,7 @@ def _routers() -> list:
     from api_skill_artifact_plan import router as skill_artifact_plan_router
     from api_skill_ai_edit import router as skill_ai_edit_router
     from api_skill_create import router as skill_create_router
+    from api_skill_evals import router as skill_evals_router
     from api_user_secrets import router as user_secrets_router
     from api_user_models import router as user_models_router
     from api_apps import router as apps_router
@@ -107,6 +108,7 @@ def _routers() -> list:
         skill_artifact_plan_router,
         skill_ai_edit_router,
         skill_create_router,
+        skill_evals_router,
         user_secrets_router,
         user_models_router,
         apps_router,

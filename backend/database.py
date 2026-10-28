@@ -446,6 +446,56 @@ class TurnIdempotency(Base):
     committed_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
 
 
+class SkillEvalCase(Base):
+    """One golden-set case for a skill: an input prompt and how to grade the reply.
+
+    grader is one of contains | regex | exact | llm_judge; expected holds the
+    substring, pattern, exact text or judge rubric respectively.
+    """
+
+    __tablename__ = "skill_eval_cases"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    slug = Column(String(64), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    input_prompt = Column(Text, nullable=False)
+    grader = Column(String(16), nullable=False)
+    expected = Column(Text, nullable=False)
+    created_by_sub = Column(String, nullable=True)
+    created_by_email = Column(String(320), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class SkillEvalRun(Base):
+    """One execution of a skill's eval cases against a specific skill text.
+
+    content_hash identifies the skill text that was graded, so the publish gate
+    can find the last run of the currently published version. results_json is a
+    JSON array of per-case results (status, reason, output excerpt).
+    """
+
+    __tablename__ = "skill_eval_runs"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    slug = Column(String(64), nullable=False, index=True)
+    content_hash = Column(String(64), nullable=False, index=True)
+    model = Column(String(256), nullable=False, default="")
+    trigger = Column(String(16), nullable=False, default="manual")  # manual | publish
+    status = Column(String(16), nullable=False, default="running")  # running | completed | failed
+    submission_id = Column(String, nullable=True)
+    started_by_sub = Column(String, nullable=True)
+    passed = Column(Integer, nullable=False, default=0)
+    failed = Column(Integer, nullable=False, default=0)
+    errored = Column(Integer, nullable=False, default=0)
+    total = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+    results_json = Column(Text, nullable=False, default="[]")
+    error = Column(Text, nullable=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = Column(DateTime, nullable=True)
+
+
 def _table_cols(conn, table: str) -> set[str]:
     """Return the set of column names for *table*. Works on SQLite and PostgreSQL."""
     if engine.dialect.name == "sqlite":
