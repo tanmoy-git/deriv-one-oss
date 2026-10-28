@@ -28,6 +28,9 @@ AGENT_TIMEOUT_FAILURE_MESSAGE = (
 
 FAILURE_KIND_FORMAT = "format_failure"
 FAILURE_KIND_TIMEOUT = "timeout_no_answer"
+# A spend budget blocked the call. Recorded on the interaction, never alerted:
+# the budget alert in ops_alerts already covers it.
+FAILURE_KIND_BUDGET = "budget_exceeded"
 
 _AGENT_FAILURE_ALERTS_ENABLED: bool = os.environ.get(
     "AGENT_FAILURE_ALERTS_ENABLED", "1"

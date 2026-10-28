@@ -84,6 +84,7 @@ def _routers() -> list:
     from api_setup import router as setup_router
     from api_memory import router as memory_router
     from api_feedback import router as feedback_router
+    from api_budgets import router as budgets_router
 
     return [
         platform_router,
@@ -101,6 +102,7 @@ def _routers() -> list:
         infra_router,
         systems_router,
         usage_router,
+        budgets_router,
         skill_publish_router,
         skill_artifacts_router,
         skill_artifacts_suggest_router,
