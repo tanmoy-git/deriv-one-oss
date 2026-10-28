@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import TracePanel from "@/src/features/agentTrace/TracePanel";
 import {
   AgentInteractionDetail,
   AgentInteractionRecord,
@@ -337,6 +338,8 @@ export function InteractionDetailModal({
               {error}
             </div>
           )}
+
+          {!loading && !error && detail && <TracePanel agentId={agentId} interactionId={item.id} />}
 
           {!loading && !error && detail && tools.length > 0 && (
             <section>
