@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
+import httpx
 from dotenv import load_dotenv
 from model_catalog import platform_default_model
 
