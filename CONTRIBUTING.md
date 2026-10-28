@@ -35,6 +35,8 @@ Copy `backend/.env.example` → `backend/.env` only when you need values the wiz
 - Run checks before pushing:
   ```bash
   npm run lint
+  npm test
+  npm run api:types   # after changing backend routes; commit src/api/schema.d.ts
   cd backend && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt && .venv/bin/python -m pytest tests/ -v
   bash scripts/check-forbidden-patterns.sh
   ```

@@ -1,0 +1,10 @@
+{
+  // Strict type-checking for code that has moved into src/features/. The rest
+  // of the app stays on tsconfig.json (non-strict) until it moves.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true
+  },
+  "include": ["src/features/**/*", "src/vite-env.d.ts", "src/test/setup.ts"]
+}

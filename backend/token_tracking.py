@@ -60,6 +60,13 @@ def record_token_usage(
         if inp == 0 and out == 0:
             return
 
+        try:
+            from metrics import record_tokens
+
+            record_tokens(source, model, inp, out)
+        except Exception:
+            logger.debug("token_tracking: metrics update failed", exc_info=True)
+
         with SessionLocal() as session:
             session.add(TokenUsageLog(
                 source=source,

@@ -1558,6 +1558,9 @@ def sync_automations_from_db() -> int:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from logging_setup import configure_logging
+
+    configure_logging()
     assert_mock_auth_not_in_production()
     if ENABLE_MOCK_AUTH:
         project = os.environ.get("PROJECT_ID", "").strip()

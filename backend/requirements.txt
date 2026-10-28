@@ -30,6 +30,7 @@ python-docx>=1.1.0
 openpyxl>=3.1
 Pillow>=10.0
 numpy>=1.26
+prometheus-client>=0.20
 
 # Pinned, hash-checked versions of everything above live in requirements.lock
 # (the Docker image installs that). Regenerate it after editing this file:
