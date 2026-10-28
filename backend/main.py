@@ -2269,6 +2269,16 @@ async def chat(request: Request, req: ChatRequest):
     _chat_ctx = build_auth_context(request.headers)
     _chat_email = _chat_ctx.email if _chat_ctx else None
 
+    from spend_budgets import check_spend_allowed
+
+    _spend = await asyncio.to_thread(check_spend_allowed, user_email=_chat_email)
+    if not _spend.allowed:
+        async def _over_budget():
+            yield _sse({"type": "error", "content": _spend.message})
+            yield _sse({"type": "done"})
+
+        return StreamingResponse(_over_budget(), media_type="text/event-stream")
+
     effective_skill_id = req.skill_id
     auto_skill_slug: str | None = None
     auto_skill_confidence: float | None = None

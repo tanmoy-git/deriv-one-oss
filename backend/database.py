@@ -224,6 +224,30 @@ class TokenUsageLog(Base):
     cache_creation_tokens = Column(Integer, nullable=False, default=0)
 
 
+class SpendBudget(Base):
+    """A monthly spend limit for the whole platform, one agent or one user.
+
+    Spend is read from token_usage_logs and priced with model_pricing, so a
+    budget needs no counters of its own. See spend_budgets.py.
+    """
+    __tablename__ = "spend_budgets"
+    __table_args__ = (UniqueConstraint("scope", "scope_id", name="uq_spend_budgets_scope"),)
+
+    id                = Column(String, primary_key=True, default=_uuid)
+    # "org" (scope_id is ""), "agent" (scope_id is the agent id) or "user"
+    # (scope_id is the lowercased email).
+    scope             = Column(String(10), nullable=False)
+    scope_id          = Column(String(320), nullable=False, default="")
+    monthly_limit_usd = Column(Float, nullable=False)
+    # Alert once spend passes this share of the limit.
+    soft_limit_pct    = Column(Integer, nullable=False, default=80)
+    # When false the budget only alerts; model calls are never blocked.
+    enforce           = Column(Boolean, nullable=False, default=True)
+    created_by        = Column(String(320), nullable=True)
+    created_at        = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at        = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class Memory(Base):
     __tablename__ = "memory"
     __table_args__ = (

@@ -219,6 +219,49 @@ def _collect_agent_cost_checks() -> list[AlertCheck]:
     return checks
 
 
+def _collect_budget_checks() -> list[AlertCheck]:
+    """One check per spend budget: breaching once spend passes its soft limit.
+
+    Every budget is reported, breaching or not, so an alert resolves when an
+    admin raises the limit or a new month starts.
+    """
+    from database import SpendBudget
+    from spend_budgets import budget_label, budget_status
+
+    checks: list[AlertCheck] = []
+    now = datetime.utcnow()
+    try:
+        with SessionLocal() as db:
+            for budget in db.query(SpendBudget).all():
+                status = budget_status(db, budget, now)
+                label = budget_label(db, budget)
+                summary = (
+                    f"`{label}` has spent ${status.spent_usd:,.2f} of its "
+                    f"${budget.monthly_limit_usd:,.2f} monthly budget"
+                )
+                if status.state == "exceeded":
+                    summary += " and is over the limit"
+                    if budget.enforce:
+                        summary += "; model calls are blocked until it is raised"
+                elif status.forecast_exceed_at is not None:
+                    summary += (
+                        f"; at this rate it reaches the limit on "
+                        f"{status.forecast_exceed_at:%d %b}"
+                    )
+                checks.append(
+                    AlertCheck(
+                        key=f"budget:{budget.id}",
+                        title=f"Spend budget: {label}",
+                        breaching=status.state != "ok",
+                        summary=summary,
+                        detail_url=f"{OPS_ALERT_APP_BASE_URL}/admin",
+                    )
+                )
+    except Exception:
+        logger.warning("ops_alerts: budget check failed", exc_info=True)
+    return checks
+
+
 async def _collect_service_down_checks() -> list[AlertCheck]:
     checks: list[AlertCheck] = []
     try:
@@ -269,6 +312,7 @@ async def _collect_all_checks() -> list[AlertCheck]:
     if backlog is not None:
         checks.append(backlog)
     checks.extend(_collect_agent_cost_checks())
+    checks.extend(_collect_budget_checks())
     checks.extend(await _collect_service_down_checks())
     return checks
 
