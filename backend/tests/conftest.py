@@ -55,13 +55,20 @@ def sqlite_session_factory():
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
 
     from database import Base
 
     sessions = []
 
     def _make(*models):
-        engine = create_engine("sqlite://")
+        # StaticPool + check_same_thread=False: one shared in-memory database,
+        # usable from the threadpool FastAPI's TestClient runs sync routes in.
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
         Base.metadata.create_all(engine, tables=[m.__table__ for m in models])
         session = sessionmaker(bind=engine)()
         sessions.append(session)
