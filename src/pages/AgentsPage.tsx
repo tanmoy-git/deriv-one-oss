@@ -94,7 +94,7 @@ function needsServiceAccount(
   );
 }
 
-function AgentCard({
+export function AgentCard({
   agent,
   manifestSyncAvailable,
   appName,
@@ -115,6 +115,10 @@ function AgentCard({
     agent.my_access === "approved";
   const noAccess = !agent.my_access || agent.my_access === "none";
   const missingServiceAccount = needsServiceAccount(agent, manifestSyncAvailable);
+  // /api/agents leaves these out for agents the viewer has no access to
+  // (agent_to_public_dict), e.g. the built-in Platform agent for most users.
+  const skillIds = agent.skill_ids ?? [];
+  const channelIds = agent.channel_ids ?? [];
 
   return (
     <div
@@ -162,14 +166,14 @@ function AgentCard({
           <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor(agent.status)}`} />
           {statusLabel(agent.status)}
         </span>
-        {agent.skill_ids.length > 0 && (
-          <span>{agent.skill_ids.length} skill{agent.skill_ids.length !== 1 ? "s" : ""}</span>
+        {skillIds.length > 0 && (
+          <span>{skillIds.length} skill{skillIds.length !== 1 ? "s" : ""}</span>
         )}
-        {agent.channel_ids.length > 0 && (
+        {channelIds.length > 0 && (
           <span className="flex items-center gap-0.5">
             <Hash className="w-3 h-3" />
-            {agent.channel_ids[0].replace(/^#/, "")}
-            {agent.channel_ids.length > 1 && ` +${agent.channel_ids.length - 1}`}
+            {channelIds[0].replace(/^#/, "")}
+            {channelIds.length > 1 && ` +${channelIds.length - 1}`}
           </span>
         )}
       </div>
