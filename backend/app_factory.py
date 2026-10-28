@@ -84,6 +84,7 @@ def _routers() -> list:
     from api_setup import router as setup_router
     from api_memory import router as memory_router
     from api_feedback import router as feedback_router
+    from api_agent_map import router as agent_map_router
 
     return [
         platform_router,
@@ -122,6 +123,7 @@ def _routers() -> list:
         flow_runs_router,
         memory_router,
         feedback_router,
+        agent_map_router,
     ]
 
 

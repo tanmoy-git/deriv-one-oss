@@ -38,6 +38,7 @@ import {
   Lock,
   MemoryStick,
   MessageSquare,
+  Network,
   Pencil,
   Plus,
   RefreshCw,
@@ -79,6 +80,7 @@ import { parseUTC } from "@/lib/time";
 import AdminFeedbackList from "@/src/feedback/AdminFeedbackList";
 import { AdminGrantModal } from "@/components/AdminGrantModal";
 import { SystemCriticalityBadge } from "@/components/SystemCriticalityBadge";
+import { AgentMapTab } from "@/src/features/agentMap/AgentMapTab";
 import { useNavigate } from "react-router-dom";
 import { useBranding } from "@/lib/branding";
 
@@ -2137,7 +2139,7 @@ function UsageTab() {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 
-type TopTab = "access" | "agent-access" | "users" | "departments" | "skills" | "infra" | "usage" | "feedback" | "analytics" | "slack-scopes" | "systems";
+type TopTab = "access" | "agent-access" | "users" | "departments" | "skills" | "infra" | "usage" | "feedback" | "analytics" | "slack-scopes" | "systems" | "agent-map";
 
 export default function AdminPage() {
   const branding = useBranding();
@@ -2182,6 +2184,7 @@ export default function AdminPage() {
     { id: "analytics",    label: "Analytics",        icon: <BarChart2 className="w-3.5 h-3.5" /> },
     { id: "slack-scopes", label: "Slack Scopes",     icon: <ShieldCheck className="w-3.5 h-3.5" /> },
     { id: "systems",      label: "Systems",          icon: <Server className="w-3.5 h-3.5" /> },
+    { id: "agent-map",    label: "Agent Map",        icon: <Network className="w-3.5 h-3.5" /> },
   ];
 
   const dirContent = () => {
@@ -2279,6 +2282,7 @@ export default function AdminPage() {
         )}
         {tab === "slack-scopes" && <SlackScopesTab />}
         {tab === "systems" && <SystemsTab />}
+        {tab === "agent-map" && <AgentMapTab />}
       </div>
     </div>
   );

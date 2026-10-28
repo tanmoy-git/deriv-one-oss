@@ -248,6 +248,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/agent-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Agent Map */
+        get: operations["admin_agent_map_api_admin_agent_map_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/agents/access/grants": {
         parameters: {
             query?: never;
@@ -5127,6 +5144,53 @@ export interface components {
             /** Target Agent Id */
             target_agent_id: string;
         };
+        /** AgentMapEdge */
+        AgentMapEdge: {
+            /** Direction */
+            direction?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "uses_skill" | "touches_system" | "needs_secret" | "in_channel" | "holds_credential";
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+        };
+        /** AgentMapNode */
+        AgentMapNode: {
+            /** Detail */
+            detail?: string | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Risk Level */
+            risk_level?: string | null;
+            /** Status */
+            status?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "agent" | "skill" | "system" | "secret" | "channel";
+        };
+        /** AgentMapResponse */
+        AgentMapResponse: {
+            /** Edges */
+            edges: components["schemas"]["AgentMapEdge"][];
+            /** Focus */
+            focus?: string | null;
+            /** Nodes */
+            nodes: components["schemas"]["AgentMapNode"][];
+            /** Totals */
+            totals: {
+                [key: string]: number;
+            };
+        };
         /**
          * AgentRegisterRequest
          * @description Body for POST /api/agents.
@@ -6732,6 +6796,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_agent_map_api_admin_agent_map_get: {
+        parameters: {
+            query?: {
+                /** @description Node id such as system:Salesforce or secret:SALESFORCE_TOKEN; returns only what is upstream or downstream of it. */
+                focus?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMapResponse"];
                 };
             };
             /** @description Validation Error */
