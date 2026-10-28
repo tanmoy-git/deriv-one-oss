@@ -51,6 +51,7 @@ import jwt as _pyjwt
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
+import agent_trace
 from model_catalog import platform_default_model
 from agents import (
     Agent,
@@ -4346,25 +4347,27 @@ async def _dispatch_event(
         )
 
     llm_started = time.time()
-    _tool_audit: list[dict] = []
+    _trace = agent_trace.AgentTrace()
+    _tool_audit: list[dict] = _trace.tool_audit
     interaction_id = str(uuid.uuid4())
     try:
-        llm_outcome = await _call_llm(
-            system_prompt=system_prompt,
-            user_content=user_content,
-            agent=agent,
-            history=history,
-            skill_secrets=merged_secrets,
-            tool_audit=_tool_audit,
-            accessible_skill_slugs=selected_skill_slugs,
-            pool_skill_slugs=accessible_skill_slugs,
-            channel_id=channel,
-            thread_ts=thread_ts,
-            workspace_manifest=workspace_manifest if workspace_prefix else None,
-            workspace_prefix=workspace_prefix,
-            workspace_outputs=workspace_outputs if workspace_prefix else None,
-            workspace_total_bytes=workspace_total_bytes if workspace_prefix else None,
-        )
+        with agent_trace.collecting(_trace):
+            llm_outcome = await _call_llm(
+                system_prompt=system_prompt,
+                user_content=user_content,
+                agent=agent,
+                history=history,
+                skill_secrets=merged_secrets,
+                tool_audit=_tool_audit,
+                accessible_skill_slugs=selected_skill_slugs,
+                pool_skill_slugs=accessible_skill_slugs,
+                channel_id=channel,
+                thread_ts=thread_ts,
+                workspace_manifest=workspace_manifest if workspace_prefix else None,
+                workspace_prefix=workspace_prefix,
+                workspace_outputs=workspace_outputs if workspace_prefix else None,
+                workspace_total_bytes=workspace_total_bytes if workspace_prefix else None,
+            )
         if llm_outcome.failure_kind:
             await notify_agent_failure(
                 agent,
@@ -4400,6 +4403,7 @@ async def _dispatch_event(
                 routing_metadata=skill_routing_meta if skill_routing_meta.get("enabled") else None,
                 failure_kind="dispatch_error",
                 failure_detail=str(exc)[:500],
+                trace=_trace.to_record(),
             ),
         )
         if placeholder_ts:
@@ -4536,6 +4540,7 @@ async def _dispatch_event(
                 failure_kind=llm_outcome.failure_kind,
                 failure_detail=llm_outcome.failure_detail,
                 resolved_model=llm_outcome.resolved_model,
+                trace=_trace.to_record(),
             ),
         )
 
@@ -4777,6 +4782,8 @@ async def _call_llm(
         with_trailing_cache_breakpoint,
     )
     from token_tracking import TokenAccumulator, record_token_usage as _record_usage
+
+    agent_trace.note_system_prompt(system_prompt)
 
     api_key, key_source = resolve_agent_gateway_api_key(
         agent,

@@ -24,6 +24,9 @@ class TokenAccumulator:
         """Accept an anthropic Usage object or any object with token attributes."""
         if usage is None:
             return
+        from agent_trace import note_model_call
+
+        note_model_call(usage)
         self.input_tokens          += getattr(usage, "input_tokens", 0) or 0
         self.output_tokens         += getattr(usage, "output_tokens", 0) or 0
         self.cache_read_tokens     += getattr(usage, "cache_read_input_tokens", 0) or 0

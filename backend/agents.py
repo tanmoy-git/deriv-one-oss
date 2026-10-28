@@ -531,6 +531,22 @@ class AgentInteractionLog(Base):
     resolved_model = Column(String(120), nullable=True)
 
 
+class AgentInteractionTrace(Base):
+    """The timeline behind one interaction: model calls and the system prompt.
+
+    Tool calls stay in AgentInteractionLog.tools_called (stamped with t_ms).
+    See agent_trace.py.
+    """
+
+    __tablename__ = "agent_interaction_traces"
+
+    interaction_id = Column(String, primary_key=True)
+    agent_id = Column(String, ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_calls = Column(Text, nullable=False, default="[]")  # JSON list, see AgentTrace.note_model_call
+    system_prompt = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class AgentThreadSkillRouting(Base):
     """Last skill-routing selection for a Slack thread (follow-up hint)."""
 
@@ -1071,8 +1087,12 @@ def record_agent_exchange(
     failure_kind: str | None = None,
     failure_detail: str | None = None,
     resolved_model: str | None = None,
+    trace: dict | None = None,
 ) -> str | None:
     """Best-effort persist of one user/agent exchange. Never raises.
+
+    ``trace`` is ``AgentTrace.to_record()``; when given, the model calls and
+    system prompt are stored in agent_interaction_traces.
 
     Returns the interaction log id when a row was written.
     """
@@ -1125,6 +1145,15 @@ def record_agent_exchange(
                 resolved_model=resolved_model or None,
             )
         )
+        if trace is not None:
+            db.add(
+                AgentInteractionTrace(
+                    interaction_id=row_id,
+                    agent_id=agent_id,
+                    model_calls=json.dumps(trace.get("model_calls") or []),
+                    system_prompt=trace.get("system_prompt"),
+                )
+            )
         agent = db.get(Agent, agent_id)
         if agent:
             agent.total_messages = (agent.total_messages or 0) + 1
