@@ -3,7 +3,8 @@
 # Usage (with the main stack already running):
 #   docker compose -f docker-compose.yml -f docker-compose.workers.yml up -d
 #
-# Run exactly ONE replica of scheduler-worker unless you add leader election.
+# One scheduler-worker is enough. On PostgreSQL, extra replicas elect a leader
+# and wait as standbys; on SQLite run exactly ONE.
 # slack-consumer is the default Slack worker. warm-worker is optional (advanced throughput).
 # Do not run both consumers on the same queue without a deliberate split.
 

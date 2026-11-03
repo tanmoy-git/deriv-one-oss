@@ -143,7 +143,7 @@ docker compose -f docker-compose.yml -f docker-compose.workers.yml up -d
 
 | Service | Purpose |
 |---------|---------|
-| `scheduler-worker` | Automation crons and memory mining — **run exactly one replica** |
+| `scheduler-worker` | Automation crons and memory mining. One replica is enough. On PostgreSQL you can run two: they elect a leader and the standby takes over within `SCHEDULER_LEASE_CHECK_S` seconds. On SQLite, **run exactly one**. |
 | `slack-consumer-worker` | **Default** Slack worker — pull events from a message queue (profile: `slack`) |
 | `warm-worker` | Optional high-throughput Slack consumer (profile: `slack`) — do not run alongside `slack-consumer-worker` on the same queue |
 
@@ -178,5 +178,6 @@ For Kubernetes on GCP, AWS, or similar: architecture, managed-service mapping, w
 - [ ] `/internal/*` reachable only on private network; set `INTERNAL_SIGNING_SECRET`
 - [ ] Redis for multi-replica skill invalidation / infra history (optional single-node)
 - [ ] `pip install -r requirements-k8s.txt` only if you need K8s sandbox or infra metrics
+- [ ] `LOG_FORMAT=json` for your log shipper; `METRICS_ENABLED=true` with an in-cluster Prometheus scrape (optional `METRICS_TOKEN`). See [cloud-deployment.md § Logs and metrics](cloud-deployment.md#logs-and-metrics)
 
 See [SECURITY.md](../SECURITY.md) for reporting vulnerabilities.
