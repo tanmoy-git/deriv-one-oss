@@ -71,6 +71,8 @@ _CLASSIFIER_MODEL = (
     or platform_default_model()
 )
 _CLASSIFIER_TIMEOUT_S = float(os.environ.get("SKILL_SYSTEM_CLASSIFIER_TIMEOUT_S", "20"))
+# Skill text sent to the classifier is cut to this many characters.
+_MAX_CONTENT_CHARS = int(os.environ.get("SKILL_SYSTEM_CLASSIFIER_MAX_CHARS", "12000"))
 
 
 @dataclass(frozen=True)

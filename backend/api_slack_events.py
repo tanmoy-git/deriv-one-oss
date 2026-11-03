@@ -4780,7 +4780,7 @@ async def _call_llm(
 
     api_key, key_source = resolve_agent_gateway_api_key(
         agent,
-        platform_key=_GATEWAY_API_KEY,
+        platform_key=_MODEL_GATEWAY_API_KEY,
         read_secret=_read_secret,
     )
     if not api_key:
