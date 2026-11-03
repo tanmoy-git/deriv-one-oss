@@ -14,6 +14,7 @@ GET    /api/skills/{slug}/evals/runs/{run_id}       One run
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -114,13 +115,24 @@ def _open_session():
 
 
 def _skill_path(slug: str) -> Path:
-    return _skills_dir() / slug / "skill.md"
+    """skill.md for *slug*, refusing any slug that could point outside the skills folder.
+
+    Callers validate the slug first; checking again here keeps every filesystem
+    access behind one guard, including the background run.
+    """
+    if not _SLUG_RE.fullmatch(slug):
+        raise HTTPException(status_code=422, detail="Invalid slug.")
+    root = os.path.normpath(str(_skills_dir()))
+    path = os.path.normpath(os.path.join(root, slug, "skill.md"))
+    if not path.startswith(root + os.sep):
+        raise HTTPException(status_code=422, detail="Invalid slug.")
+    return Path(path)
 
 
 def _require_manage(request: Request, db, slug: str):
     """Resolve the skill and check the caller may edit it; returns (auth, slug)."""
     slug = slug.strip().lower()
-    if not _SLUG_RE.match(slug):
+    if not _SLUG_RE.fullmatch(slug):
         raise HTTPException(status_code=422, detail="Invalid slug.")
     auth = get_current_user(request)
     if not _skill_path(slug).exists():

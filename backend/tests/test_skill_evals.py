@@ -436,3 +436,49 @@ def test_confirm_systems_route_refuses_a_regressing_edit(client, eval_db, skills
     assert body["eval_gate"]["blocked"] is True
     # Nothing was published: the live skill text is unchanged.
     assert (skills_dir / "greeter" / "skill.md").read_text(encoding="utf-8") == SKILL_MD
+
+
+# ── Slug validation (path traversal) ──────────────────────────────────────────
+
+_BAD_SLUGS = ["..", "%2e%2e", "..%2Fetc", "a%2Fb", "%2e%2e%2Fetc", "-greeter", "Greeter_1"]
+_EVAL_ENDPOINTS = [
+    ("get", "/api/skills/{slug}/evals"),
+    ("post", "/api/skills/{slug}/evals/cases"),
+    ("put", "/api/skills/{slug}/evals/cases/c1"),
+    ("delete", "/api/skills/{slug}/evals/cases/c1"),
+    ("post", "/api/skills/{slug}/evals/runs"),
+    ("get", "/api/skills/{slug}/evals/runs"),
+    ("get", "/api/skills/{slug}/evals/runs/r1"),
+]
+
+
+@pytest.mark.parametrize("method,template", _EVAL_ENDPOINTS)
+def test_eval_endpoints_reject_traversal_slugs_before_touching_the_filesystem(client, monkeypatch, method, template):
+    import api_skill_evals
+
+    touched: list[str] = []
+    real_skills_dir = api_skill_evals._skills_dir
+    monkeypatch.setattr(api_skill_evals, "_skills_dir", lambda: touched.append("x") or real_skills_dir())
+
+    for slug in _BAD_SLUGS:
+        kwargs = {"json": CASE} if method in ("post", "put") else {}
+        res = getattr(client, method)(template.format(slug=slug), **kwargs)
+        assert res.status_code in (404, 405, 422), (slug, res.status_code)
+    assert touched == []
+
+
+@pytest.mark.parametrize("slug", ["../etc", "..", "a/b", "/etc", "greeter\n", ""])
+def test_skill_path_refuses_slugs_that_leave_the_skills_folder(skills_dir, slug):
+    from fastapi import HTTPException
+
+    import api_skill_evals
+
+    with pytest.raises(HTTPException) as exc:
+        api_skill_evals._skill_path(slug)
+    assert exc.value.status_code == 422
+
+
+def test_skill_path_stays_inside_the_skills_folder(skills_dir):
+    import api_skill_evals
+
+    assert api_skill_evals._skill_path("greeter") == skills_dir / "greeter" / "skill.md"

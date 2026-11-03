@@ -2517,7 +2517,9 @@ def delete_skill(slug: str, request: Request, db: Session = Depends(_db)):
         delete_for_slug(db, slug)
     except Exception:
         db.rollback()
-        logger.exception("delete_skill: could not delete eval cases for '%s'", slug)
+        # Strip line breaks so a URL value can never forge extra log lines.
+        safe_slug = slug.replace("\r", "").replace("\n", "")
+        logger.exception("delete_skill: could not delete eval cases for '%s'", safe_slug)
 
     # 1. Delete secrets from the vault and DB
     secret_rows = db.query(SkillSecret).filter(SkillSecret.slug == slug).all()
