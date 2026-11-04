@@ -62,6 +62,7 @@ For existing deployments that are already configured, set `PLATFORM_SETUP_COMPLE
 | Persistence | SQLite + local blob implied | `DATABASE_URL` for multi-replica | `BLOB_STORE`, `SECRET_BACKEND` plugins |
 | Sandbox | Defaults to container provider | Docker socket / images for Lab + `run_python` | `SANDBOX_RUNTIME=gVisor`, K8s provider |
 | Public URL | `APP_BASE_URL` in wizard | Tunnel URL for Slack/Google callbacks | `SLACK_EVENTS_GATEWAY_URL` |
+| Skill evals | — | — | `SKILL_EVAL_MODEL`, `SKILL_EVAL_GATE_ENABLED` (refuse a publish that scores below the published version; off means warn only), `SKILL_EVAL_MAX_CASES_PER_RUN`, `SKILL_EVAL_CASE_TIMEOUT_SECONDS` |
 
 **Personal/local defaults:** mock auth on, SQLite database, local encrypted secrets, local blob store, claims-based directory. **Team mode** forces OIDC and refuses mock auth when `APP_ENV=production`.
 
