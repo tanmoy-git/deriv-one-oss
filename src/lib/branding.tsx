@@ -32,7 +32,10 @@ const DEFAULT_CONFIG: PlatformConfig = {
   org_noun: "employee",
   slack_auto_create_enabled: false,
   slack_config_collaborator: "",
-  setup_complete: false,
+  // Unknown until /api/platform/config answers. SetupAdminGate only redirects
+  // on an explicit false, so leaving this unset stops it from sending admins to
+  // the setup wizard on every page load before the config arrives.
+  setup_complete: undefined,
 };
 
 export interface BrandingContextValue extends PlatformConfig {

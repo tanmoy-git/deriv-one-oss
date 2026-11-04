@@ -264,8 +264,8 @@ export default function AgentDetailPage() {
                       <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor(agent.status)}`} />
                       {statusLabel(agent.status)}
                     </span>
-                    {agent.skill_ids.length > 0 && (
-                      <span className="text-xs text-slate-400">{agent.skill_ids.length} skill{agent.skill_ids.length !== 1 ? "s" : ""}</span>
+                    {(agent.skill_ids ?? []).length > 0 && (
+                      <span className="text-xs text-slate-400">{(agent.skill_ids ?? []).length} skill{(agent.skill_ids ?? []).length !== 1 ? "s" : ""}</span>
                     )}
                   </div>
                 </div>

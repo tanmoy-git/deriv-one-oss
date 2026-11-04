@@ -15,9 +15,10 @@ export interface AgentRecord {
   xoxb_secret_ref: string | null;
   xapp_secret_ref: string | null;
   signing_secret_ref: string | null;
-  skill_ids: string[];
+  // Absent when the viewer has no access to the agent.
+  skill_ids?: string[];
   soul_text: string | null;
-  channel_ids: string[];
+  channel_ids?: string[];
   trigger_mode: TriggerMode;
   agent_type: AgentType;
   /** Canonical model slug, or null for platform default. */

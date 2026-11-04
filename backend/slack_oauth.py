@@ -413,11 +413,15 @@ def generate_manifest(
         "interactivity": {
             "is_enabled": False,
         },
-        "allowed_ip_address_ranges": list(_ALLOWED_IP_ADDRESS_RANGES),
         "org_deploy_enabled": False,
         "socket_mode_enabled": False,
         "token_rotation_enabled": False,
     }
+    # Restrict API Token Usage only when the operator configured CIDRs; an
+    # empty list is left out so the restriction stays off.
+    allowlist = _manifest_ip_allowlist()
+    if allowlist:
+        settings["allowed_ip_address_ranges"] = allowlist
     if event_subscriptions:
         settings["event_subscriptions"] = event_subscriptions
     return {
