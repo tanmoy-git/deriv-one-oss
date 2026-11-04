@@ -84,6 +84,7 @@ def _routers() -> list:
     from api_setup import router as setup_router
     from api_memory import router as memory_router
     from api_feedback import router as feedback_router
+    from api_agent_traces import router as agent_traces_router
 
     return [
         platform_router,
@@ -98,6 +99,7 @@ def _routers() -> list:
         agent_access_router,
         agent_skill_access_router,
         agent_roles_router,
+        agent_traces_router,
         infra_router,
         systems_router,
         usage_router,
