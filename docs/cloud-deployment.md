@@ -142,6 +142,16 @@ RUN_MIGRATIONS=true   # entrypoint runs `alembic upgrade head` once
 
 Or run Alembic from a CI job before rolling out new API pods.
 
+Each process (API replica, scheduler, worker) keeps its own connection pool:
+
+```bash
+DB_POOL_SIZE=10      # connections kept open
+DB_MAX_OVERFLOW=20   # extra connections allowed under load
+DB_POOL_TIMEOUT=30   # seconds to wait for a free connection
+```
+
+A process can open up to `DB_POOL_SIZE + DB_MAX_OVERFLOW` connections. Size Postgres `max_connections` (or your Cloud SQL / RDS tier) for that number times the process count across all Deployments, or put PgBouncer in front.
+
 ---
 
 ## Helm chart

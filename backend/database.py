@@ -1,8 +1,12 @@
 import logging
 import os
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated, Iterator
+
+from fastapi import Depends
 
 from sqlalchemy import (
     Boolean,
@@ -19,7 +23,7 @@ from sqlalchemy import (
     create_engine,
     text as sa_text,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
 
 _DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
@@ -29,9 +33,11 @@ if _DATABASE_URL:
     engine = create_engine(
         _sync_url,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
-        pool_timeout=30,
+        # Each API replica, worker and the scheduler gets its own pool, so the
+        # total against Postgres is replicas x (pool + overflow).
+        pool_size=int(os.environ.get("DB_POOL_SIZE", "10")),
+        max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20")),
+        pool_timeout=int(os.environ.get("DB_POOL_TIMEOUT", "30")),
     )
 else:
     # Local development fallback — SQLite
@@ -44,6 +50,44 @@ else:
     )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+
+
+def get_db() -> Iterator[Session]:
+    """FastAPI dependency: one session per request.
+
+    The route (or the service it calls) commits; this only rolls back on an
+    error and closes. Use it as ``db: DB`` instead of calling SessionLocal()
+    in a route, so tests can swap the database with
+    ``app.dependency_overrides[get_db]``.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+DB = Annotated[Session, Depends(get_db)]
+
+
+@contextmanager
+def session_scope() -> Iterator[Session]:
+    """A session for code outside a request: workers, scheduler jobs, SSE writes.
+
+    Commits when the block exits normally and rolls back if it raises.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 OWNER_LEGACY_SENTINEL = "__LEGACY_UNASSIGNED__"
 
