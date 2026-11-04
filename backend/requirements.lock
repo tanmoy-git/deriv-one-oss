@@ -1324,6 +1324,10 @@ pillow==13.0.0 \
     # via
     #   -r requirements.txt
     #   reportlab
+prometheus-client==0.26.0 \
+    --hash=sha256:04a91bcf94e2cf74a44a1a874d651a2e853ed354b6e822f3b7487751465d5c2b \
+    --hash=sha256:fa93d06737aa02bacd05794768508bb97d2fbee28cb3bca04eaae92f0ca953d6
+    # via -r requirements.txt
 psycopg2-binary==2.9.13 \
     --hash=sha256:0405dd4d97720e7ab177aa02e493f524907c4cb3c445ac173e2627948d3d0528 \
     --hash=sha256:0463c00f946517f3e69192a59e6601e023ff9de45ad0a875eda3d6b1bebeb7ce \

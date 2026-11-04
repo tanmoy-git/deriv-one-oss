@@ -422,7 +422,7 @@ does not change who can see what.
 |---|---|---|
 | `slack_consumer_worker.py` | Slack events → isolated subprocess per agent | **Yes** (with `MESSAGE_QUEUE` + DMZ relay at scale) |
 | `warm_worker.py` | Slack events → coroutine per event (higher throughput) | Optional — advanced only |
-| `scheduler_worker.py` | cron automations | **Yes** (exactly one replica) |
+| `scheduler_worker.py` | cron automations | **Yes** (one replica, or two with a leader lease on PostgreSQL) |
 | `kb_ingest_worker.py` | knowledge-base document indexing | When agents use knowledge bases |
 
 ---

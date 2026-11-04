@@ -33,7 +33,7 @@ For first-time local setup, see [ADOPTER_GUIDE.md](ADOPTER_GUIDE.md). For Docker
 |-----------|-----------------|-------|
 | **Frontend** | Root `Dockerfile` → nginx on port 80 | Serves static UI; proxies `/api` to backend |
 | **Backend API** | `backend/Dockerfile` → uvicorn on port 8000 | Horizontally scalable when using Postgres + shared blob/secret stores |
-| **Scheduler worker** | Same backend image, `python -m scheduler_worker` | **Exactly one replica** unless you add leader election |
+| **Scheduler worker** | Same backend image, `python -m scheduler_worker` | Two replicas on PostgreSQL: they elect a leader through an advisory lock and the standby takes over if it dies. **One replica on SQLite.** |
 | **Slack workers** | Same backend image | `slack_consumer_worker`, `warm_worker` — optional; need a real message queue |
 | **Sandbox image** | `docker/sandbox/Dockerfile` | Model-generated Python runs here; no network at runtime |
 
@@ -63,7 +63,7 @@ For first-time local setup, see [ADOPTER_GUIDE.md](ADOPTER_GUIDE.md). For Docker
                      │
          ┌───────────┴───────────┐
          │  Worker Deployments   │
-         │  scheduler (×1)       │
+         │  scheduler (×2)       │
          │  slack-* (optional)   │
          └───────────┬───────────┘
                      │
@@ -189,7 +189,7 @@ Model each process as its own **Deployment** (or Job for one-off migrations). St
 |----------|---------|----------|
 | Frontend | nginx (image default) | 2+ |
 | Backend API | `uvicorn main:app --host 0.0.0.0 --port 8000` | 2+ |
-| Scheduler | `python -m scheduler_worker` | **1** |
+| Scheduler | `python -m scheduler_worker` | 2 (leader lease on PostgreSQL); **1** on SQLite |
 | Slack consumer | `python -m slack_consumer_worker` | 1+ (if using Slack + queue) |
 | Warm worker | `python -m warm_worker` | optional |
 
@@ -212,6 +212,13 @@ GET /api/health
 ```
 
 Use for Kubernetes `livenessProbe` and `readinessProbe` on backend pods.
+
+### Logs and metrics
+
+- `LOG_FORMAT=json` writes one JSON object per line from the API and every worker, for Cloud Logging, CloudWatch or any log shipper. `LOG_LEVEL` defaults to `INFO`.
+- `METRICS_ENABLED=true` serves Prometheus metrics at `/metrics` on backend port 8000: request counts and latency by route template, and LLM token counts. `/metrics` is outside `/api`, so the bundled nginx does not proxy it and only in-cluster scrapers reach it. Set `METRICS_TOKEN` to also require `Authorization: Bearer <token>`.
+- The scheduler has no HTTP server. `SCHEDULER_METRICS_PORT` (Helm: `scheduler.metricsPort`, default `9100`) serves its metrics, including `scheduler_is_leader`. Alert when the sum across scheduler pods is not exactly 1.
+- `SCHEDULER_LEASE_CHECK_S` (default 10) is how often a standby scheduler checks the lease, so it is roughly the failover time.
 
 ---
 
@@ -243,6 +250,10 @@ BLOB_STORE=your.module:YourBlobStore
 SECRET_BACKEND=your.module:YourSecretBackend
 MESSAGE_QUEUE=your.module:YourQueue
 REDIS_HOST=redis.example.internal
+
+# Logs and metrics (see Logs and metrics above)
+LOG_FORMAT=json
+METRICS_ENABLED=true
 
 # Sandbox
 SANDBOX_PYTHON_IMAGE=REGISTRY/platform-sandbox-python:TAG
@@ -297,7 +308,7 @@ Build and push `platform-sandbox-python` to your registry. Whatever packages the
 
 ### Workloads
 
-- [ ] Deployments: `frontend`, `backend` (≥2 replicas), `scheduler-worker` (1 replica)
+- [ ] Deployments: `frontend`, `backend` (≥2 replicas), `scheduler-worker` (2 replicas; one leads)
 - [ ] Optional: `slack-consumer-worker`, `warm-worker`
 - [ ] `backend` Service; frontend nginx `proxy_pass` to `http://backend:8000`
 - [ ] Probes on `/api/health`

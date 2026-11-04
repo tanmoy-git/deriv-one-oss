@@ -36,7 +36,6 @@ import json
 import logging
 import os
 import signal
-import sys
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -48,11 +47,9 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8080").rstrip("/
 
 load_dotenv()
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    stream=sys.stdout,
-)
+from logging_setup import configure_logging  # noqa: E402
+
+configure_logging()
 logger = logging.getLogger("warm_worker")
 
 # ── Config ────────────────────────────────────────────────────────────────────

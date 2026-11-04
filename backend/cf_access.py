@@ -370,7 +370,8 @@ def build_auth_context(headers: Headers) -> AuthContext:
 
 
 def exempt_path_predicate() -> Callable[[str], bool]:
-    exact = frozenset({"/api/health", "/api/slack/events", "/api/platform/config"})
+    # /metrics exists only with METRICS_ENABLED and checks METRICS_TOKEN itself.
+    exact = frozenset({"/api/health", "/api/slack/events", "/api/platform/config", "/metrics"})
     openapi = frozenset({"/openapi.json", "/docs", "/redoc"})
 
     def is_exempt(path: str) -> bool:

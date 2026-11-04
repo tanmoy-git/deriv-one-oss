@@ -45,7 +45,6 @@ import json
 import logging
 import os
 import signal
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
@@ -53,11 +52,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    stream=sys.stdout,
-)
+from logging_setup import configure_logging  # noqa: E402
+
+configure_logging()
 logger = logging.getLogger("slack_consumer_worker")
 
 # ── Config ────────────────────────────────────────────────────────────────────
