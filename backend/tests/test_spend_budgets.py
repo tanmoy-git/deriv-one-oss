@@ -193,7 +193,8 @@ def test_budget_alert_breaches_past_the_soft_limit(budget_db, monkeypatch):
     _agent(budget_db)
     quiet = _budget(budget_db, "org", limit=100)
     loud = _budget(budget_db, "agent", "a1", limit=10, pct=50)
-    _usage(budget_db, 6, agent_id="a1")
+    # The collector reads the real current month, so the usage must fall in it.
+    _usage(budget_db, 6, agent_id="a1", when=datetime.utcnow())
 
     checks = {c.key: c for c in ops_alerts._collect_budget_checks()}
     assert not checks[f"budget:{quiet.id}"].breaching
