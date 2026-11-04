@@ -1,29 +1,17 @@
-"""owner-scoped flows on the workflow tables
+"""Body of the flow owner-scoping migration.
 
-Adds `owner_sub` and `kind` to `workflow_definitions` / `workflow_runs` so a
-second, owner-scoped kind of graph ("flow", api_flows.py) can live alongside
-the original agent-scoped, Slack-triggered graphs ("playbook", api_workflows.py)
-without either query surface seeing the other's rows. `agent_id` on both tables
-becomes nullable — a flow has no owning agent.
+This used to be a second revision file that reused the id z1a2b3c4d5e6.
+Alembic keys revisions by id, so only one of the two files ever ran on a
+given database. It now lives here and is applied by the reconcile revision
+4f1d9c2e7a3b. Every step checks the live schema first, so it is safe to
+run on a database where it already ran.
 
-Purely additive: every existing row is backfilled to kind="playbook" with
-owner_sub=OWNER_LEGACY_SENTINEL, and agent_id NOT NULL -> NULL is a widening
-change that admits every value already stored.
-
-Revision ID: z1a2b3c4d5e6
-Revises: y0z1a2b3c4d5
-Create Date: 2026-08-25 12:00:00.000000
-
+downgrade() is kept for reference and for anyone stepping a database back
+by hand; the reconcile revision itself does not call it.
 """
-from typing import Sequence, Union
-
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "z1a2b3c4d5e6"
-down_revision: Union[str, None] = "y0z1a2b3c4d5"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
 
 _OWNER_LEGACY_SENTINEL = "__LEGACY_UNASSIGNED__"
 
