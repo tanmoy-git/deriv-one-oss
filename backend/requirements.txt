@@ -30,8 +30,13 @@ python-docx>=1.1.0
 openpyxl>=3.1
 Pillow>=10.0
 numpy>=1.26
-pytest>=8.0
 
+# Pinned, hash-checked versions of everything above live in requirements.lock
+# (the Docker image installs that). Regenerate it after editing this file:
+#   uv pip compile requirements.txt --generate-hashes --python-version 3.12 \
+#     --universal -o requirements.lock
+# Test tools: requirements-dev.txt.
+#
 # Optional extras (install as needed):
 #   pip install -r requirements-integrations.txt   # Google Workspace OAuth
 #   pip install -r requirements-k8s.txt          # Admin infra + K8s sandbox
